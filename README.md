@@ -156,12 +156,7 @@ CLIENT_URL=http://localhost:5173
 npm run seed
 ```
 
-This creates 4 sample products. The seeder also creates the admin user:
-
-| Field | Value |
-|---|---|
-| Email | `admin@luxuryplatok.uz` |
-| Password | `admin123` |
+This creates 4 sample products and an initial admin user. Set the admin credentials directly in `server/utils/seeder.js` before running.
 
 ### 4. Run in development
 
