@@ -1,0 +1,114 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background-color: #FAFAFA;
+    color: #1A1A1A;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, h4, h5 {
+    font-family: 'Playfair Display', Georgia, serif;
+  }
+
+  ::selection {
+    background-color: #E8A2B5;
+    color: #fff;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #FDF2F5;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #E8A2B5;
+    border-radius: 3px;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-pink-400 hover:bg-pink-500 text-white font-medium px-6 py-3 rounded-full
+           transition-all duration-300 shadow-pink hover:shadow-luxury-lg active:scale-95
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-gold {
+    @apply bg-gold-gradient text-charcoal-800 font-semibold px-6 py-3 rounded-full
+           transition-all duration-300 shadow-luxury hover:shadow-luxury-lg active:scale-95;
+  }
+
+  .btn-outline {
+    @apply border border-pink-400 text-pink-500 hover:bg-pink-50 font-medium px-6 py-3 rounded-full
+           transition-all duration-300 active:scale-95;
+  }
+
+  .card-luxury {
+    @apply bg-white rounded-2xl shadow-luxury hover:shadow-luxury-lg
+           transition-all duration-300 overflow-hidden;
+  }
+
+  .section-title {
+    @apply font-serif text-3xl md:text-4xl text-charcoal-800 text-center;
+  }
+
+  .section-subtitle {
+    @apply text-charcoal-400 text-center mt-2 font-sans text-sm md:text-base tracking-wide;
+  }
+
+  .gold-divider {
+    @apply w-16 h-0.5 bg-gold-gradient mx-auto my-4 rounded-full;
+  }
+
+  .input-field {
+    @apply w-full border border-charcoal-200 rounded-xl px-4 py-3 text-charcoal-800
+           focus:outline-none focus:ring-2 focus:ring-pink-300 focus:border-transparent
+           placeholder-charcoal-300 transition-all duration-200;
+  }
+
+  .badge-luxury {
+    @apply inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium;
+  }
+
+  .skeleton {
+    @apply bg-charcoal-100 animate-pulse rounded-lg;
+  }
+}
+
+@layer utilities {
+  .text-gradient-gold {
+    background: linear-gradient(135deg, #C9A96E 0%, #E5C885 50%, #C9A96E 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .text-gradient-pink {
+    background: linear-gradient(135deg, #D4788F 0%, #E8A2B5 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .hover-lift {
+    @apply transition-transform duration-300 hover:-translate-y-1;
+  }
+}
