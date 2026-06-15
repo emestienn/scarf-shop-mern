@@ -1,13 +1,16 @@
+import { useState, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Instagram } from 'lucide-react';
+import { Instagram, Play, ChevronLeft, ChevronRight } from 'lucide-react';
 import useLanguageStore from '../../store/languageStore.js';
 
-// Placeholder grid — replace with real Instagram Basic Display API or curated images
-const PLACEHOLDER_POSTS = Array.from({ length: 6 }, (_, i) => ({
-  id: i + 1,
-  likes: Math.floor(Math.random() * 800) + 100,
-  url: 'https://instagram.com/luxury_platok__',
-}));
+const REEL_SHORTCODES = [
+  'DZhuNjwzjiw',
+  'DZK2hP4sOl1',
+  'DZK2UKcMvzw',
+  'DZKWyomsqSS',
+  'DZJ9taEskBz',
+  'DZCBxGTMTZ9',
+];
 
 const PASTEL_GRADIENTS = [
   'from-pink-100 to-gold-100',
@@ -18,67 +21,149 @@ const PASTEL_GRADIENTS = [
   'from-pink-100 to-charcoal-100',
 ];
 
-export default function InstagramFeed() {
-  const { t } = useLanguageStore();
+const ReelTile = ({ shortcode, index }) => {
+  const [loaded, setLoaded] = useState(false);
 
   return (
-    <section className="py-20 bg-white">
+    <div
+      className="relative rounded-2xl overflow-hidden bg-charcoal-50 shadow-luxury flex-shrink-0"
+      style={{ aspectRatio: '9 / 16', width: 'var(--reel-width)' }}
+    >
+      {/* Loading shimmer */}
+      {!loaded && (
+        <div className={`absolute inset-0 bg-gradient-to-br ${PASTEL_GRADIENTS[index]} flex items-center justify-center z-10`}>
+          <div className="w-12 h-12 rounded-full bg-white/70 flex items-center justify-center animate-pulse">
+            <Play size={22} className="text-pink-400 fill-pink-400 ml-0.5" />
+          </div>
+        </div>
+      )}
+
+      <iframe
+        src={`https://www.instagram.com/p/${shortcode}/embed/`}
+        className="absolute inset-0 w-full h-full border-0"
+        allowTransparency={true}
+        scrolling="no"
+        frameBorder="0"
+        allow="encrypted-media; clipboard-write"
+        loading="lazy"
+        onLoad={() => setLoaded(true)}
+        title={`Instagram reel ${index + 1}`}
+      />
+    </div>
+  );
+};
+
+export default function InstagramFeed() {
+  const { t } = useLanguageStore();
+  const trackRef  = useRef(null);
+  const [canLeft,  setCanLeft]  = useState(false);
+  const [canRight, setCanRight] = useState(true);
+
+  const updateArrows = useCallback(() => {
+    const el = trackRef.current;
+    if (!el) return;
+    setCanLeft(el.scrollLeft > 4);
+    setCanRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 4);
+  }, []);
+
+  const scroll = (dir) => {
+    const el = trackRef.current;
+    if (!el) return;
+    // scroll one tile width at a time
+    const tileW = el.firstChild?.offsetWidth ?? 280;
+    el.scrollBy({ left: dir * (tileW + 16), behavior: 'smooth' });
+  };
+
+  return (
+    <section className="py-20 bg-white overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+        {/* Header */}
         <div className="text-center mb-12">
-          <span className="badge-luxury bg-pink-50 text-pink-500 border border-pink-200 mb-3">
-            <Instagram size={14} /> Instagram
+          <span className="badge-luxury bg-pink-50 text-pink-500 border border-pink-200 mb-3 inline-flex items-center gap-1.5">
+            <Instagram size={13} /> Instagram Reels
           </span>
           <h2 className="section-title mt-3">{t('sections.instagram')}</h2>
           <div className="gold-divider" />
           <p className="section-subtitle">{t('sections.instagram_sub')}</p>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 md:gap-4">
-          {PLACEHOLDER_POSTS.map((post, i) => (
-            <motion.a
-              key={post.id}
-              href={post.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              initial={{ opacity: 0, scale: 0.9 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              viewport={{ once: true }}
-              transition={{ delay: i * 0.07, duration: 0.4 }}
-              whileHover={{ scale: 1.02 }}
-              className={`relative aspect-square rounded-2xl overflow-hidden bg-gradient-to-br ${PASTEL_GRADIENTS[i]} group cursor-pointer`}
-            >
-              {/* Placeholder content */}
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-center">
-                  <div className="w-12 h-12 mx-auto rounded-full bg-white/40 backdrop-blur-sm flex items-center justify-center mb-2">
-                    <span className="text-2xl">
-                      {['🧣', '✨', '🌸', '💎', '🌿', '🎀'][i]}
-                    </span>
-                  </div>
-                  <p className="text-charcoal-500 text-xs font-medium">@luxury_platok__</p>
-                </div>
-              </div>
+        {/* Carousel wrapper */}
+        <div className="relative group/carousel">
 
-              {/* Hover overlay */}
-              <div className="absolute inset-0 bg-charcoal-900/50 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center backdrop-blur-sm">
-                <div className="text-white text-center">
-                  <Instagram size={24} className="mx-auto mb-2" />
-                  <p className="text-sm font-medium">♥ {post.likes}</p>
-                </div>
-              </div>
-            </motion.a>
+          {/* Left arrow */}
+          <motion.button
+            initial={false}
+            animate={{ opacity: canLeft ? 1 : 0, pointerEvents: canLeft ? 'auto' : 'none' }}
+            transition={{ duration: 0.2 }}
+            onClick={() => scroll(-1)}
+            className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 z-20 w-11 h-11 rounded-full bg-white shadow-luxury-lg border border-pink-100 flex items-center justify-center hover:bg-pink-50 hover:border-pink-300 transition-all"
+          >
+            <ChevronLeft size={20} className="text-charcoal-700" />
+          </motion.button>
+
+          {/* Right arrow */}
+          <motion.button
+            initial={false}
+            animate={{ opacity: canRight ? 1 : 0, pointerEvents: canRight ? 'auto' : 'none' }}
+            transition={{ duration: 0.2 }}
+            onClick={() => scroll(1)}
+            className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 z-20 w-11 h-11 rounded-full bg-white shadow-luxury-lg border border-pink-100 flex items-center justify-center hover:bg-pink-50 hover:border-pink-300 transition-all"
+          >
+            <ChevronRight size={20} className="text-charcoal-700" />
+          </motion.button>
+
+          {/* Scrollable track
+              --reel-width drives the tile width AND aspect-ratio height.
+              Shows ~3.3 tiles on mobile, ~4 on desktop so the next tile
+              peeks to hint at scrollability. */}
+          <div
+            ref={trackRef}
+            onScroll={updateArrows}
+            className="flex gap-4 overflow-x-auto scroll-smooth pb-2 hide-scrollbar"
+            style={{ '--reel-width': 'clamp(200px, 22vw, 280px)' }}
+          >
+
+            {REEL_SHORTCODES.map((shortcode, i) => (
+              <motion.div
+                key={shortcode}
+                initial={{ opacity: 0, y: 16 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.07, duration: 0.4 }}
+              >
+                <ReelTile shortcode={shortcode} index={i} />
+              </motion.div>
+            ))}
+          </div>
+        </div>
+
+        {/* Dot indicators */}
+        <div className="flex justify-center gap-1.5 mt-6">
+          {REEL_SHORTCODES.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => {
+                const el = trackRef.current;
+                if (!el) return;
+                const tileW = el.firstChild?.firstChild?.offsetWidth ?? 260;
+                el.scrollTo({ left: i * (tileW + 16), behavior: 'smooth' });
+              }}
+              className="w-2 h-2 rounded-full bg-pink-200 hover:bg-pink-400 transition-colors"
+            />
           ))}
         </div>
 
-        <div className="text-center mt-10">
+        {/* Follow CTA */}
+        <div className="text-center mt-8">
           <a
-            href="https://instagram.com/luxury_platok__"
+            href="https://www.instagram.com/luxury_platok_"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 btn-outline"
           >
             <Instagram size={18} />
-            Подписаться в Instagram
+            {t('instagram.follow')}
           </a>
         </div>
       </div>

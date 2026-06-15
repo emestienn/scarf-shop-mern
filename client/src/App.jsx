@@ -17,8 +17,18 @@ const Admin         = lazy(() => import('./pages/Admin.jsx'));
 const PageLoader = () => (
   <div className="min-h-screen flex items-center justify-center bg-luxury-gradient">
     <div className="flex flex-col items-center gap-4">
-      <div className="w-14 h-14 rounded-full bg-pink-gradient flex items-center justify-center shadow-pink animate-pulse">
-        <span className="text-white font-serif font-bold text-xl">LP</span>
+      <img
+        src="/logo.png"
+        alt="Luxury Platok"
+        className="h-20 w-auto object-contain animate-pulse"
+        onError={(e) => {
+          e.target.style.display = 'none';
+          e.target.nextSibling.style.display = 'flex';
+        }}
+      />
+      {/* Fallback */}
+      <div className="hidden w-16 h-16 rounded-full bg-pink-gradient items-center justify-center shadow-pink animate-pulse">
+        <span className="text-white font-serif font-bold text-2xl">LP</span>
       </div>
       <div className="flex gap-1.5">
         {[0, 1, 2].map((i) => (

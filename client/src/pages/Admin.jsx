@@ -1,17 +1,104 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, createContext, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, ShoppingBag, Package, Users, LogOut,
   TrendingUp, Clock, CheckCircle, XCircle, ChevronDown,
-  RefreshCw, Plus, Edit2, Trash2, Search, Send, Eye,
+  RefreshCw, Plus, Edit2, Trash2, Search, Eye,
+  Truck, Store, MessageSquare, RotateCcw, Settings2,
+  BadgeCheck, Star, Award, Sparkles, Link2, UserX,
+  CreditCard, AlertCircle,
 } from 'lucide-react';
 import useAuthStore from '../store/authStore.js';
 import { adminApi } from '../api/index.js';
 
-const fmt   = (n) => new Intl.NumberFormat('uz-UZ').format(Math.round(n));
-const fmtDt = (d) => new Date(d).toLocaleString('ru-RU', { timeZone: 'Asia/Tashkent', day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
+// ── Bilingual strings ─────────────────────────────────────────────────────────
+const AT = {
+  ru: {
+    nav: { dashboard: 'Dashboard', orders: 'Заказы', products: 'Товары', users: 'Клиенты' },
+    sidebar: { view_site: 'Просмотр сайта', logout: 'Выйти', role: 'Администратор' },
+    dashboard: {
+      total_orders: 'Всего заказов', pending: 'Ожидают', needs_processing: 'Нужна обработка',
+      revenue: 'Выручка', customers: 'Клиентов', recent_orders: 'Последние заказы',
+      cols: ['Заказ', 'Клиент', 'Сумма', 'Статус', 'Дата'],
+    },
+    orders: {
+      title: 'Управление заказами', all: 'Все',
+      loading: 'Загрузка заказов...', empty: 'Заказов нет',
+      cols: ['', 'Заказ', 'Клиент', 'Товары', 'Сумма', 'Доставка', 'Статус'],
+      delivery: 'Доставка', pickup: 'Самовывоз',
+      expand: { address: 'Адрес', payment: 'Оплата', composition: 'Состав', notes: 'Комментарий' },
+      paid: 'Оплачен', not_paid: 'Не оплачен',
+      units: 'шт.',
+    },
+    status: {
+      pending: 'Ожидает', confirmed: 'Подтверждён', processing: 'Обрабатывается',
+      shipped: 'Отправлен', delivered: 'Доставлен', cancelled: 'Отменён', refunded: 'Возврат',
+    },
+    products: {
+      title: 'Товары', search: 'Поиск...', add: 'Добавить',
+      cols: ['Товар', 'Категория', 'Материал', 'Цена', 'Склад', 'Флаги', ''],
+      loading: 'Загрузка...', units: 'шт.',
+      modal_edit: 'Редактировать товар', modal_new: 'Новый товар',
+      name_ru: 'Название (RU) *', name_uz: 'Название (UZ)',
+      slug: 'Slug — авто если пусто', desc_ru: 'Описание (RU)', desc_uz: 'Описание (UZ)',
+      category: 'Категория', material: 'Материал', pattern: 'Узор',
+      price: 'Цена (UZS) *', stock: 'Остаток (шт.) *', photos: 'Фото (URLs через запятую)',
+      cancel: 'Отмена', save: 'Сохранить', saving: 'Сохранение...',
+      delete_confirm: 'Удалить товар?', error_save: 'Ошибка сохранения',
+      flags: { featured: 'Рекомендуемый', bestseller: 'Хит продаж', new: 'Новинка' },
+    },
+    users: {
+      title: 'Клиенты', cols: ['Клиент', 'Email', 'Телефон', 'Роль', 'Telegram', 'Зарег.', ''],
+      loading: 'Загрузка...', all: 'Все',
+      approve: 'Одобрить опт', deactivate_confirm: 'Деактивировать пользователя?',
+      linked: 'Привязан', guest: 'Гость',
+    },
+  },
+  uz: {
+    nav: { dashboard: 'Dashboard', orders: 'Buyurtmalar', products: 'Mahsulotlar', users: 'Mijozlar' },
+    sidebar: { view_site: 'Saytni ko\'rish', logout: 'Chiqish', role: 'Administrator' },
+    dashboard: {
+      total_orders: 'Jami buyurtmalar', pending: 'Kutilmoqda', needs_processing: 'Qayta ishlash kerak',
+      revenue: 'Daromad', customers: 'Mijozlar', recent_orders: 'So\'nggi buyurtmalar',
+      cols: ['Buyurtma', 'Mijoz', 'Summa', 'Holat', 'Sana'],
+    },
+    orders: {
+      title: 'Buyurtmalarni boshqarish', all: 'Hammasi',
+      loading: 'Buyurtmalar yuklanmoqda...', empty: 'Buyurtmalar yo\'q',
+      cols: ['', 'Buyurtma', 'Mijoz', 'Mahsulotlar', 'Summa', 'Yetkazib berish', 'Holat'],
+      delivery: 'Yetkazib berish', pickup: 'O\'zi olib ketish',
+      expand: { address: 'Manzil', payment: 'To\'lov', composition: 'Tarkib', notes: 'Izoh' },
+      paid: 'To\'langan', not_paid: 'To\'lanmagan',
+      units: 'ta',
+    },
+    status: {
+      pending: 'Kutilmoqda', confirmed: 'Tasdiqlandi', processing: 'Jarayonda',
+      shipped: 'Yuborildi', delivered: 'Yetkazildi', cancelled: 'Bekor', refunded: 'Qaytarildi',
+    },
+    products: {
+      title: 'Mahsulotlar', search: 'Qidirish...', add: 'Qo\'shish',
+      cols: ['Mahsulot', 'Kategoriya', 'Material', 'Narx', 'Ombor', 'Belgilar', ''],
+      loading: 'Yuklanmoqda...', units: 'ta',
+      modal_edit: 'Mahsulotni tahrirlash', modal_new: 'Yangi mahsulot',
+      name_ru: 'Nomi (RU) *', name_uz: 'Nomi (UZ)',
+      slug: 'Slug — bo\'sh bo\'lsa avtomatik', desc_ru: 'Tavsif (RU)', desc_uz: 'Tavsif (UZ)',
+      category: 'Kategoriya', material: 'Material', pattern: 'Naqsh',
+      price: 'Narx (UZS) *', stock: 'Qoldiq (ta) *', photos: 'Rasmlar (vergul bilan URLlar)',
+      cancel: 'Bekor qilish', save: 'Saqlash', saving: 'Saqlanmoqda...',
+      delete_confirm: 'Mahsulotni o\'chirish?', error_save: 'Saqlashda xatolik',
+      flags: { featured: 'Tavsiya etilgan', bestseller: 'Eng ko\'p sotilgan', new: 'Yangi' },
+    },
+    users: {
+      title: 'Mijozlar', cols: ['Mijoz', 'Email', 'Telefon', 'Rol', 'Telegram', 'Ro\'yxat', ''],
+      loading: 'Yuklanmoqda...', all: 'Hammasi',
+      approve: 'Ulgurjini tasdiqlash', deactivate_confirm: 'Foydalanuvchini faolsizlantirish?',
+      linked: 'Bog\'langan', guest: 'Mehmon',
+    },
+  },
+};
 
+// ── Status helpers ────────────────────────────────────────────────────────────
 const STATUS_OPTIONS = ['pending','confirmed','processing','shipped','delivered','cancelled','refunded'];
 const STATUS_COLORS  = {
   pending:    'bg-yellow-100 text-yellow-700',
@@ -22,7 +109,35 @@ const STATUS_COLORS  = {
   cancelled:  'bg-red-100 text-red-700',
   refunded:   'bg-charcoal-100 text-charcoal-600',
 };
-const STATUS_EMOJI = { pending:'⏳', confirmed:'✅', processing:'⚙️', shipped:'📦', delivered:'🎉', cancelled:'❌', refunded:'↩️' };
+const STATUS_ICONS = {
+  pending:    <Clock     size={12} />,
+  confirmed:  <CheckCircle size={12} />,
+  processing: <Settings2 size={12} />,
+  shipped:    <Package   size={12} />,
+  delivered:  <BadgeCheck size={12} />,
+  cancelled:  <XCircle   size={12} />,
+  refunded:   <RotateCcw size={12} />,
+};
+
+const fmt   = (n) => new Intl.NumberFormat('uz-UZ').format(Math.round(n));
+const fmtDt = (d) => new Date(d).toLocaleString('ru-RU', { timeZone: 'Asia/Tashkent', day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
+
+// ── Lang context shared across all tabs ───────────────────────────────────────
+const LangCtx = createContext('ru');
+const useLang = () => {
+  const lang = useContext(LangCtx);
+  return (path) => path.split('.').reduce((o, k) => o?.[k], AT[lang]) ?? path;
+};
+
+// ── Language toggle button ────────────────────────────────────────────────────
+const LangToggle = ({ lang, setLang }) => (
+  <button
+    onClick={() => setLang(l => l === 'ru' ? 'uz' : 'ru')}
+    className="text-[11px] font-semibold px-2.5 py-1 rounded-full border border-pink-200 text-pink-500 hover:bg-pink-50 transition-all tracking-wide"
+  >
+    {lang === 'ru' ? 'UZ' : 'RU'}
+  </button>
+);
 
 // ── Stat card ─────────────────────────────────────────────────────────────────
 const StatCard = ({ icon, label, value, sub, color = 'pink' }) => {
@@ -43,67 +158,96 @@ const StatCard = ({ icon, label, value, sub, color = 'pink' }) => {
 };
 
 // ── Sidebar ───────────────────────────────────────────────────────────────────
-const NAV = [
-  { id: 'dashboard', label: 'Dashboard',  icon: <LayoutDashboard size={18} /> },
-  { id: 'orders',    label: 'Заказы',     icon: <ShoppingBag size={18} /> },
-  { id: 'products',  label: 'Товары',     icon: <Package size={18} /> },
-  { id: 'users',     label: 'Клиенты',    icon: <Users size={18} /> },
-];
+const Sidebar = ({ active, setActive, user, logout, lang, setLang }) => {
+  const at = useLang();
+  const NAV = [
+    { id: 'dashboard', icon: <LayoutDashboard size={18} /> },
+    { id: 'orders',    icon: <ShoppingBag size={18} /> },
+    { id: 'products',  icon: <Package size={18} /> },
+    { id: 'users',     icon: <Users size={18} /> },
+  ];
 
-const Sidebar = ({ active, setActive, user, logout }) => (
-  <aside className="w-56 bg-white border-r border-pink-100 flex flex-col h-screen sticky top-0 flex-shrink-0 shadow-luxury">
-    <div className="px-5 py-6 border-b border-pink-100">
-      <div className="flex items-center gap-2">
-        <div className="w-8 h-8 rounded-full bg-pink-gradient flex items-center justify-center">
-          <span className="font-serif font-bold text-xs text-white">LP</span>
-        </div>
-        <div>
-          <p className="font-serif text-sm text-charcoal-800">Luxury Platok</p>
-          <p className="text-[10px] text-charcoal-400">Admin Panel</p>
+  return (
+    <aside className="w-56 bg-white border-r border-pink-100 flex flex-col h-screen sticky top-0 flex-shrink-0 shadow-luxury">
+      <div className="px-5 py-5 border-b border-pink-100">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <img
+              src="/logo.png"
+              alt="LP"
+              className="h-8 w-auto object-contain"
+              onError={(e) => {
+                e.target.style.display = 'none';
+                e.target.nextSibling.style.display = 'flex';
+              }}
+            />
+            <div className="hidden w-8 h-8 rounded-full bg-pink-gradient items-center justify-center">
+              <span className="font-serif font-bold text-xs text-white">LP</span>
+            </div>
+            <div>
+              <p className="font-serif text-sm text-charcoal-800 leading-none">Luxury Platok</p>
+              <p className="text-[10px] text-charcoal-400 mt-0.5">Admin Panel</p>
+            </div>
+          </div>
+          <LangToggle lang={lang} setLang={setLang} />
         </div>
       </div>
-    </div>
-    <nav className="flex-1 px-3 py-4 space-y-1">
-      {NAV.map((n) => (
+
+      <nav className="flex-1 px-3 py-4 space-y-1">
+        {NAV.map((n) => (
+          <button
+            key={n.id}
+            onClick={() => setActive(n.id)}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+              active === n.id
+                ? 'bg-pink-50 text-pink-500 border border-pink-200'
+                : 'text-charcoal-500 hover:bg-pink-50/60 hover:text-pink-400'
+            }`}
+          >
+            {n.icon}
+            {at(`nav.${n.id}`)}
+          </button>
+        ))}
+      </nav>
+
+      <div className="px-3 py-4 border-t border-pink-100">
+        <div className="flex items-center gap-2 px-3 mb-3">
+          <div className="w-7 h-7 rounded-full bg-pink-400 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+            {user?.name?.[0]?.toUpperCase()}
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs text-charcoal-700 font-medium truncate">{user?.name}</p>
+            <p className="text-[10px] text-charcoal-400">{at('sidebar.role')}</p>
+          </div>
+        </div>
+        <Link to="/" className="flex items-center gap-2 px-3 py-2 text-xs text-charcoal-400 hover:text-pink-500 transition-colors">
+          <Eye size={14} /> {at('sidebar.view_site')}
+        </Link>
         <button
-          key={n.id}
-          onClick={() => setActive(n.id)}
-          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
-            active === n.id
-              ? 'bg-pink-50 text-pink-500 border border-pink-200'
-              : 'text-charcoal-500 hover:bg-pink-50/60 hover:text-pink-400'
-          }`}
+          onClick={logout}
+          className="w-full flex items-center gap-2 px-3 py-2 text-xs text-charcoal-400 hover:text-red-400 transition-colors"
         >
-          {n.icon}
-          {n.label}
+          <LogOut size={14} /> {at('sidebar.logout')}
         </button>
-      ))}
-    </nav>
-    <div className="px-3 py-4 border-t border-pink-100">
-      <div className="flex items-center gap-2 px-3 mb-3">
-        <div className="w-7 h-7 rounded-full bg-pink-400 flex items-center justify-center text-white text-xs font-bold">
-          {user?.name?.[0]?.toUpperCase()}
-        </div>
-        <div className="min-w-0">
-          <p className="text-xs text-charcoal-700 font-medium truncate">{user?.name}</p>
-          <p className="text-[10px] text-charcoal-400">Admin</p>
-        </div>
       </div>
-      <Link to="/" className="flex items-center gap-2 px-3 py-2 text-xs text-charcoal-400 hover:text-pink-500 transition-colors">
-        <Eye size={14} /> Просмотр сайта
-      </Link>
-      <button
-        onClick={logout}
-        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-charcoal-400 hover:text-red-400 transition-colors"
-      >
-        <LogOut size={14} /> Выйти
-      </button>
-    </div>
-  </aside>
-);
+    </aside>
+  );
+};
+
+// ── Status badge (icon + label) ───────────────────────────────────────────────
+const StatusBadge = ({ status }) => {
+  const at = useLang();
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[status]}`}>
+      {STATUS_ICONS[status]}
+      {at(`status.${status}`)}
+    </span>
+  );
+};
 
 // ── Dashboard tab ─────────────────────────────────────────────────────────────
 const DashboardTab = () => {
+  const at = useLang();
   const [data, setData]       = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -126,21 +270,21 @@ const DashboardTab = () => {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard icon={<ShoppingBag size={22}/>} label="Всего заказов"   value={data?.stats.totalOrders ?? 0}   color="pink" />
-        <StatCard icon={<Clock size={22}/>}        label="Ожидают"         value={data?.stats.pendingOrders ?? 0}  color="gold" sub="Нужна обработка" />
-        <StatCard icon={<TrendingUp size={22}/>}  label="Выручка"          value={`${fmt(data?.stats.totalRevenue || 0)} UZS`} color="green" />
-        <StatCard icon={<Users size={22}/>}        label="Клиентов"         value={data?.stats.totalUsers ?? 0}     color="purple" />
+        <StatCard icon={<ShoppingBag size={22}/>} label={at('dashboard.total_orders')} value={data?.stats.totalOrders ?? 0}  color="pink" />
+        <StatCard icon={<Clock size={22}/>}        label={at('dashboard.pending')}      value={data?.stats.pendingOrders ?? 0} color="gold" sub={at('dashboard.needs_processing')} />
+        <StatCard icon={<TrendingUp size={22}/>}   label={at('dashboard.revenue')}      value={`${fmt(data?.stats.totalRevenue || 0)} UZS`} color="green" />
+        <StatCard icon={<Users size={22}/>}        label={at('dashboard.customers')}    value={data?.stats.totalUsers ?? 0}    color="purple" />
       </div>
 
       <div className="bg-white rounded-2xl shadow-luxury overflow-hidden">
         <div className="px-6 py-4 border-b border-charcoal-100">
-          <h3 className="font-serif text-lg text-charcoal-800">Последние заказы</h3>
+          <h3 className="font-serif text-lg text-charcoal-800">{at('dashboard.recent_orders')}</h3>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-charcoal-50">
               <tr>
-                {['Заказ','Клиент','Сумма','Статус','Дата'].map(h => (
+                {at('dashboard.cols').map(h => (
                   <th key={h} className="text-left py-3 px-4 text-xs font-medium text-charcoal-500 uppercase tracking-wide">{h}</th>
                 ))}
               </tr>
@@ -149,13 +293,9 @@ const DashboardTab = () => {
               {(data?.recentOrders || []).map((order) => (
                 <tr key={order._id} className="hover:bg-pink-50/30 transition-colors">
                   <td className="py-3 px-4 font-medium text-charcoal-800">{order.orderNumber}</td>
-                  <td className="py-3 px-4 text-charcoal-600">{order.user?.name || order.guestEmail || 'Гость'}</td>
+                  <td className="py-3 px-4 text-charcoal-600">{order.user?.name || order.guestEmail || at('users.guest')}</td>
                   <td className="py-3 px-4 font-semibold text-pink-500">{fmt(order.totalAmount)} UZS</td>
-                  <td className="py-3 px-4">
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[order.status]}`}>
-                      {STATUS_EMOJI[order.status]} {order.status}
-                    </span>
-                  </td>
+                  <td className="py-3 px-4"><StatusBadge status={order.status} /></td>
                   <td className="py-3 px-4 text-charcoal-400 text-xs">{fmtDt(order.createdAt)}</td>
                 </tr>
               ))}
@@ -169,6 +309,7 @@ const DashboardTab = () => {
 
 // ── Orders tab ────────────────────────────────────────────────────────────────
 const OrdersTab = () => {
+  const at = useLang();
   const [orders, setOrders]     = useState([]);
   const [loading, setLoading]   = useState(true);
   const [filter, setFilter]     = useState('');
@@ -196,17 +337,17 @@ const OrdersTab = () => {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <h2 className="font-serif text-xl text-charcoal-800">Управление заказами</h2>
+        <h2 className="font-serif text-xl text-charcoal-800">{at('orders.title')}</h2>
         <div className="flex gap-2 flex-wrap items-center">
-          {['','pending','confirmed','processing','shipped','delivered','cancelled'].map((s) => (
+          {['', ...STATUS_OPTIONS.slice(0, 6)].map((s) => (
             <button
               key={s}
               onClick={() => setFilter(s)}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+              className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
                 filter === s ? 'bg-pink-400 text-white' : 'bg-white text-charcoal-600 shadow-luxury hover:bg-pink-50'
               }`}
             >
-              {s ? `${STATUS_EMOJI[s]} ${s}` : 'Все'}
+              {s ? <>{STATUS_ICONS[s]} {at(`status.${s}`)}</> : at('orders.all')}
             </button>
           ))}
           <button onClick={load} className="p-2 rounded-full bg-white shadow-luxury text-charcoal-500 hover:text-pink-500 transition-colors">
@@ -217,16 +358,16 @@ const OrdersTab = () => {
 
       <div className="bg-white rounded-2xl shadow-luxury overflow-hidden">
         {loading ? (
-          <div className="p-8 text-center text-charcoal-400">Загрузка заказов...</div>
+          <div className="p-8 text-center text-charcoal-400">{at('orders.loading')}</div>
         ) : orders.length === 0 ? (
-          <div className="p-12 text-center text-charcoal-400">Заказов нет</div>
+          <div className="p-12 text-center text-charcoal-400">{at('orders.empty')}</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-charcoal-50">
                 <tr>
-                  {['','Заказ','Клиент','Товары','Сумма','Доставка','Статус'].map(h => (
-                    <th key={h} className="text-left py-3 px-3 text-xs font-medium text-charcoal-500 uppercase tracking-wide">{h}</th>
+                  {at('orders.cols').map((h, i) => (
+                    <th key={i} className="text-left py-3 px-3 text-xs font-medium text-charcoal-500 uppercase tracking-wide">{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -246,7 +387,7 @@ const OrdersTab = () => {
                         <p className="text-[11px] text-charcoal-400">{fmtDt(order.createdAt)}</p>
                       </td>
                       <td className="py-3 px-3">
-                        <p className="text-charcoal-700 whitespace-nowrap">{order.shippingAddress?.fullName || order.user?.name || 'Гость'}</p>
+                        <p className="text-charcoal-700 whitespace-nowrap">{order.shippingAddress?.fullName || order.user?.name || at('users.guest')}</p>
                         <p className="text-[11px] text-charcoal-400">{order.shippingAddress?.phone || '—'}</p>
                       </td>
                       <td className="py-3 px-3 max-w-[160px]">
@@ -256,7 +397,12 @@ const OrdersTab = () => {
                       </td>
                       <td className="py-3 px-3 font-semibold text-pink-500 whitespace-nowrap">{fmt(order.totalAmount)} UZS</td>
                       <td className="py-3 px-3 text-xs text-charcoal-500">
-                        {order.deliveryMethod === 'pickup' ? `🏪 ${order.pickupLocation}` : '🚚 Доставка'}
+                        <span className="inline-flex items-center gap-1">
+                          {order.deliveryMethod === 'pickup'
+                            ? <><Store size={12} className="text-gold-500" /> {order.pickupLocation}</>
+                            : <><Truck size={12} className="text-blue-400" /> {at('orders.delivery')}</>
+                          }
+                        </span>
                       </td>
                       <td className="py-3 px-3" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center gap-2">
@@ -266,7 +412,7 @@ const OrdersTab = () => {
                             disabled={updating === order._id}
                             className={`text-xs font-medium rounded-full px-2 py-1 border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-pink-300 ${STATUS_COLORS[order.status]}`}
                           >
-                            {STATUS_OPTIONS.map(s => <option key={s} value={s}>{STATUS_EMOJI[s]} {s}</option>)}
+                            {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
                           </select>
                           {updating === order._id && <RefreshCw size={13} className="animate-spin text-pink-400 flex-shrink-0" />}
                         </div>
@@ -284,32 +430,43 @@ const OrdersTab = () => {
                               className="grid sm:grid-cols-3 gap-4 pt-3 text-sm"
                             >
                               <div>
-                                <p className="text-xs font-medium text-charcoal-500 uppercase tracking-wide mb-1">Адрес</p>
+                                <p className="text-xs font-medium text-charcoal-500 uppercase tracking-wide mb-1">{at('orders.expand.address')}</p>
                                 {order.deliveryMethod === 'pickup' ? (
-                                  <p className="text-charcoal-700">🏪 Самовывоз: {order.pickupLocation}</p>
+                                  <p className="text-charcoal-700 flex items-center gap-1">
+                                    <Store size={13} className="text-gold-500" /> {at('orders.pickup')}: {order.pickupLocation}
+                                  </p>
                                 ) : (
                                   <p className="text-charcoal-700">{order.shippingAddress?.district}, {order.shippingAddress?.street}{order.shippingAddress?.apartment ? `, кв.${order.shippingAddress.apartment}` : ''}</p>
                                 )}
                               </div>
                               <div>
-                                <p className="text-xs font-medium text-charcoal-500 uppercase tracking-wide mb-1">Оплата</p>
-                                <p className="text-charcoal-700 capitalize">{order.paymentMethod?.replace(/_/g,' ')}</p>
-                                <p className={`text-xs mt-0.5 ${order.isPaid ? 'text-green-600' : 'text-yellow-600'}`}>
-                                  {order.isPaid ? '✅ Оплачен' : '⏳ Не оплачен'}
+                                <p className="text-xs font-medium text-charcoal-500 uppercase tracking-wide mb-1">{at('orders.expand.payment')}</p>
+                                <p className="text-charcoal-700 flex items-center gap-1">
+                                  <CreditCard size={13} className="text-charcoal-400" />
+                                  <span className="capitalize">{order.paymentMethod?.replace(/_/g,' ')}</span>
+                                </p>
+                                <p className={`text-xs mt-1 flex items-center gap-1 ${order.isPaid ? 'text-green-600' : 'text-yellow-600'}`}>
+                                  {order.isPaid
+                                    ? <><CheckCircle size={12} /> {at('orders.paid')}</>
+                                    : <><Clock size={12} /> {at('orders.not_paid')}</>
+                                  }
                                 </p>
                               </div>
                               <div>
-                                <p className="text-xs font-medium text-charcoal-500 uppercase tracking-wide mb-1">Состав</p>
+                                <p className="text-xs font-medium text-charcoal-500 uppercase tracking-wide mb-1">{at('orders.expand.composition')}</p>
                                 <ul className="space-y-0.5">
                                   {order.items?.map((item, i) => (
                                     <li key={i} className="text-charcoal-700 text-xs">
-                                      {item.name}{item.color ? ` (${item.color})` : ''} — {item.quantity} шт. × {fmt(item.unitPrice)} UZS
+                                      {item.name}{item.color ? ` (${item.color})` : ''} — {item.quantity} {at('orders.units')} × {fmt(item.unitPrice)} UZS
                                     </li>
                                   ))}
                                 </ul>
                               </div>
                               {order.shippingAddress?.notes && (
-                                <p className="col-span-3 text-xs text-charcoal-500 italic">💬 {order.shippingAddress.notes}</p>
+                                <p className="col-span-3 text-xs text-charcoal-500 italic flex items-start gap-1">
+                                  <MessageSquare size={12} className="mt-0.5 flex-shrink-0" />
+                                  {order.shippingAddress.notes}
+                                </p>
                               )}
                             </motion.div>
                           </td>
@@ -337,6 +494,7 @@ const EMPTY_PRODUCT = {
 };
 
 const ProductsTab = () => {
+  const at = useLang();
   const [products, setProducts] = useState([]);
   const [loading, setLoading]   = useState(true);
   const [search, setSearch]     = useState('');
@@ -389,12 +547,12 @@ const ProductsTab = () => {
       await load();
       setModal(null);
     } catch (err) {
-      alert(err.response?.data?.message || 'Ошибка сохранения');
+      alert(err.response?.data?.message || at('products.error_save'));
     } finally { setSaving(false); }
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('Удалить товар?')) return;
+    if (!confirm(at('products.delete_confirm'))) return;
     await adminApi.deleteProduct(id);
     setProducts(prev => prev.filter(p => p._id !== id));
   };
@@ -402,31 +560,31 @@ const ProductsTab = () => {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <h2 className="font-serif text-xl text-charcoal-800">Товары ({products.length})</h2>
+        <h2 className="font-serif text-xl text-charcoal-800">{at('products.title')} ({products.length})</h2>
         <div className="flex gap-2">
           <div className="relative">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-charcoal-400" />
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Поиск..."
+              placeholder={at('products.search')}
               className="pl-8 pr-3 py-2 text-sm border border-charcoal-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-300"
             />
           </div>
           <button onClick={openCreate} className="btn-primary text-sm px-4 py-2 flex items-center gap-1.5">
-            <Plus size={15} /> Добавить
+            <Plus size={15} /> {at('products.add')}
           </button>
         </div>
       </div>
 
       <div className="bg-white rounded-2xl shadow-luxury overflow-hidden">
-        {loading ? <div className="p-8 text-center text-charcoal-400">Загрузка...</div> : (
+        {loading ? <div className="p-8 text-center text-charcoal-400">{at('products.loading')}</div> : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-charcoal-50">
                 <tr>
-                  {['Товар','Категория','Материал','Цена','Склад','Флаги',''].map(h => (
-                    <th key={h} className="text-left py-3 px-4 text-xs font-medium text-charcoal-500 uppercase tracking-wide">{h}</th>
+                  {at('products.cols').map((h, i) => (
+                    <th key={i} className="text-left py-3 px-4 text-xs font-medium text-charcoal-500 uppercase tracking-wide">{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -438,7 +596,9 @@ const ProductsTab = () => {
                         {p.images?.[0] ? (
                           <img src={p.images[0]} alt="" className="w-10 h-10 object-cover rounded-lg flex-shrink-0" />
                         ) : (
-                          <div className="w-10 h-10 bg-pink-50 rounded-lg flex items-center justify-center text-lg flex-shrink-0">🧣</div>
+                          <div className="w-10 h-10 bg-pink-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                            <Package size={18} className="text-pink-300" />
+                          </div>
                         )}
                         <div className="min-w-0">
                           <p className="font-medium text-charcoal-800 line-clamp-1">{p.name?.ru}</p>
@@ -451,14 +611,14 @@ const ProductsTab = () => {
                     <td className="py-3 px-4 font-semibold text-pink-500 whitespace-nowrap">{fmt(p.retailPrice)} UZS</td>
                     <td className="py-3 px-4">
                       <span className={`text-xs font-medium ${p.stock > 0 ? 'text-green-600' : 'text-red-500'}`}>
-                        {p.stock} шт.
+                        {p.stock} {at('products.units')}
                       </span>
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex gap-1 flex-wrap">
-                        {p.isFeatured   && <span className="text-[10px] bg-pink-100 text-pink-600 px-1.5 py-0.5 rounded-full">Featured</span>}
-                        {p.isBestSeller && <span className="text-[10px] bg-gold-100 text-gold-600 px-1.5 py-0.5 rounded-full">BestSeller</span>}
-                        {p.isNewArrival && <span className="text-[10px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full">New</span>}
+                        {p.isFeatured   && <span className="inline-flex items-center gap-0.5 text-[10px] bg-pink-100 text-pink-600 px-1.5 py-0.5 rounded-full"><Star size={9} /> {at('products.flags.featured')}</span>}
+                        {p.isBestSeller && <span className="inline-flex items-center gap-0.5 text-[10px] bg-gold-100 text-gold-600 px-1.5 py-0.5 rounded-full"><Award size={9} /> {at('products.flags.bestseller')}</span>}
+                        {p.isNewArrival && <span className="inline-flex items-center gap-0.5 text-[10px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full"><Sparkles size={9} /> {at('products.flags.new')}</span>}
                       </div>
                     </td>
                     <td className="py-3 px-4">
@@ -493,49 +653,49 @@ const ProductsTab = () => {
             >
               <div className="p-6 border-b border-charcoal-100 sticky top-0 bg-white z-10">
                 <h3 className="font-serif text-xl text-charcoal-800">
-                  {modal === 'edit' ? 'Редактировать товар' : 'Новый товар'}
+                  {modal === 'edit' ? at('products.modal_edit') : at('products.modal_new')}
                 </h3>
               </div>
               <form onSubmit={handleSave} className="p-6 space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-medium text-charcoal-600 mb-1">Название (RU) *</label>
+                    <label className="block text-xs font-medium text-charcoal-600 mb-1">{at('products.name_ru')}</label>
                     <input value={form.nameRu} onChange={e => F('nameRu', e.target.value)} className="input-field text-sm" required />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-charcoal-600 mb-1">Название (UZ)</label>
+                    <label className="block text-xs font-medium text-charcoal-600 mb-1">{at('products.name_uz')}</label>
                     <input value={form.nameUz} onChange={e => F('nameUz', e.target.value)} className="input-field text-sm" />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-charcoal-600 mb-1">Slug — авто если пусто</label>
+                  <label className="block text-xs font-medium text-charcoal-600 mb-1">{at('products.slug')}</label>
                   <input value={form.slug} onChange={e => F('slug', e.target.value)} className="input-field text-sm" placeholder="nazvanie-tovara" />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-medium text-charcoal-600 mb-1">Описание (RU)</label>
+                    <label className="block text-xs font-medium text-charcoal-600 mb-1">{at('products.desc_ru')}</label>
                     <textarea value={form.descRu} onChange={e => F('descRu', e.target.value)} className="input-field text-sm resize-none" rows={3} />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-charcoal-600 mb-1">Описание (UZ)</label>
+                    <label className="block text-xs font-medium text-charcoal-600 mb-1">{at('products.desc_uz')}</label>
                     <textarea value={form.descUz} onChange={e => F('descUz', e.target.value)} className="input-field text-sm resize-none" rows={3} />
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-3">
                   <div>
-                    <label className="block text-xs font-medium text-charcoal-600 mb-1">Категория</label>
+                    <label className="block text-xs font-medium text-charcoal-600 mb-1">{at('products.category')}</label>
                     <select value={form.category} onChange={e => F('category', e.target.value)} className="input-field text-sm">
                       {['hijab','platok','shawl','scarf','accessory'].map(c => <option key={c}>{c}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-charcoal-600 mb-1">Материал</label>
+                    <label className="block text-xs font-medium text-charcoal-600 mb-1">{at('products.material')}</label>
                     <select value={form.material} onChange={e => F('material', e.target.value)} className="input-field text-sm">
                       {['silk','chiffon','cotton','georgette','viscose','modal','jersey','other'].map(m => <option key={m}>{m}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-charcoal-600 mb-1">Узор</label>
+                    <label className="block text-xs font-medium text-charcoal-600 mb-1">{at('products.pattern')}</label>
                     <select value={form.pattern} onChange={e => F('pattern', e.target.value)} className="input-field text-sm">
                       {['solid','floral','monogram','patterned','geometric','abstract'].map(p => <option key={p}>{p}</option>)}
                     </select>
@@ -543,30 +703,34 @@ const ProductsTab = () => {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-medium text-charcoal-600 mb-1">Цена (UZS) *</label>
+                    <label className="block text-xs font-medium text-charcoal-600 mb-1">{at('products.price')}</label>
                     <input type="number" min="0" value={form.retailPrice} onChange={e => F('retailPrice', e.target.value)} className="input-field text-sm" required />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-charcoal-600 mb-1">Остаток (шт.) *</label>
+                    <label className="block text-xs font-medium text-charcoal-600 mb-1">{at('products.stock')}</label>
                     <input type="number" min="0" value={form.stock} onChange={e => F('stock', e.target.value)} className="input-field text-sm" required />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-charcoal-600 mb-1">Фото (URLs через запятую)</label>
+                  <label className="block text-xs font-medium text-charcoal-600 mb-1">{at('products.photos')}</label>
                   <textarea value={form.images} onChange={e => F('images', e.target.value)} className="input-field text-sm resize-none" rows={2} placeholder="https://..., https://..." />
                 </div>
-                <div className="flex gap-6">
-                  {[['isFeatured','⭐ Featured'],['isBestSeller','🏆 BestSeller'],['isNewArrival','🆕 NewArrival']].map(([field, label]) => (
+                <div className="flex gap-6 flex-wrap">
+                  {[
+                    ['isFeatured', 'flags.featured',   <Star size={14} className="text-pink-400"/>],
+                    ['isBestSeller','flags.bestseller', <Award size={14} className="text-gold-500"/>],
+                    ['isNewArrival','flags.new',        <Sparkles size={14} className="text-blue-400"/>],
+                  ].map(([field, labelKey, icon]) => (
                     <label key={field} className="flex items-center gap-2 cursor-pointer">
                       <input type="checkbox" checked={form[field]} onChange={e => F(field, e.target.checked)} className="w-4 h-4 accent-pink-400" />
-                      <span className="text-sm text-charcoal-700">{label}</span>
+                      <span className="flex items-center gap-1 text-sm text-charcoal-700">{icon} {at(`products.${labelKey}`)}</span>
                     </label>
                   ))}
                 </div>
                 <div className="flex gap-3 pt-2 border-t border-charcoal-100">
-                  <button type="button" onClick={() => setModal(null)} className="btn-outline flex-1">Отмена</button>
+                  <button type="button" onClick={() => setModal(null)} className="btn-outline flex-1">{at('products.cancel')}</button>
                   <button type="submit" disabled={saving} className="btn-primary flex-1 flex items-center justify-center gap-2">
-                    <CheckCircle size={16} /> {saving ? 'Сохранение...' : 'Сохранить'}
+                    <CheckCircle size={16} /> {saving ? at('products.saving') : at('products.save')}
                   </button>
                 </div>
               </form>
@@ -580,6 +744,7 @@ const ProductsTab = () => {
 
 // ── Users tab ─────────────────────────────────────────────────────────────────
 const UsersTab = () => {
+  const at = useLang();
   const [users, setUsers]     = useState([]);
   const [loading, setLoading] = useState(true);
   const [roleFilter, setRole] = useState('');
@@ -600,7 +765,7 @@ const UsersTab = () => {
   };
 
   const deactivate = async (id) => {
-    if (!confirm('Деактивировать пользователя?')) return;
+    if (!confirm(at('users.deactivate_confirm'))) return;
     await adminApi.deactivateUser(id);
     setUsers(prev => prev.map(u => u._id === id ? { ...u, isActive: false } : u));
   };
@@ -614,25 +779,25 @@ const UsersTab = () => {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <h2 className="font-serif text-xl text-charcoal-800">Клиенты ({users.length})</h2>
+        <h2 className="font-serif text-xl text-charcoal-800">{at('users.title')} ({users.length})</h2>
         <div className="flex gap-2">
           {['','customer','wholesale','admin'].map(r => (
             <button key={r} onClick={() => setRole(r)}
               className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${roleFilter === r ? 'bg-pink-400 text-white' : 'bg-white text-charcoal-600 shadow-luxury hover:bg-pink-50'}`}>
-              {r || 'Все'}
+              {r || at('users.all')}
             </button>
           ))}
         </div>
       </div>
 
       <div className="bg-white rounded-2xl shadow-luxury overflow-hidden">
-        {loading ? <div className="p-8 text-center text-charcoal-400">Загрузка...</div> : (
+        {loading ? <div className="p-8 text-center text-charcoal-400">{at('users.loading')}</div> : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-charcoal-50">
                 <tr>
-                  {['Клиент','Email','Телефон','Роль','Telegram','Зарег.',''].map(h => (
-                    <th key={h} className="text-left py-3 px-4 text-xs font-medium text-charcoal-500 uppercase tracking-wide">{h}</th>
+                  {at('users.cols').map((h, i) => (
+                    <th key={i} className="text-left py-3 px-4 text-xs font-medium text-charcoal-500 uppercase tracking-wide">{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -655,7 +820,11 @@ const UsersTab = () => {
                       </span>
                     </td>
                     <td className="py-3 px-4 text-charcoal-500 text-xs">
-                      {u.telegramUsername ? `@${u.telegramUsername}` : u.telegramId ? '✅ Linked' : '—'}
+                      {u.telegramUsername ? (
+                        <span className="flex items-center gap-1">@{u.telegramUsername}</span>
+                      ) : u.telegramId ? (
+                        <span className="inline-flex items-center gap-1 text-green-600"><Link2 size={12} /> {at('users.linked')}</span>
+                      ) : '—'}
                     </td>
                     <td className="py-3 px-4 text-charcoal-400 text-xs">{fmtDt(u.createdAt)}</td>
                     <td className="py-3 px-4">
@@ -663,14 +832,14 @@ const UsersTab = () => {
                         {u.role === 'customer' && u.wholesaleInfo?.businessName && (
                           <button
                             onClick={() => approveWholesale(u._id)}
-                            className="px-2 py-1 text-[11px] bg-gold-100 text-gold-700 rounded-lg hover:bg-gold-200 transition-colors whitespace-nowrap font-medium"
+                            className="inline-flex items-center gap-1 px-2 py-1 text-[11px] bg-gold-100 text-gold-700 rounded-lg hover:bg-gold-200 transition-colors whitespace-nowrap font-medium"
                           >
-                            ✦ Одобрить опт
+                            <BadgeCheck size={12} /> {at('users.approve')}
                           </button>
                         )}
                         {u.isActive && u.role !== 'admin' && (
-                          <button onClick={() => deactivate(u._id)} className="p-1.5 rounded-lg hover:bg-red-50 text-charcoal-300 hover:text-red-400 transition-colors">
-                            <XCircle size={14} />
+                          <button onClick={() => deactivate(u._id)} className="p-1.5 rounded-lg hover:bg-red-50 text-charcoal-300 hover:text-red-400 transition-colors" title={at('users.deactivate_confirm')}>
+                            <UserX size={14} />
                           </button>
                         )}
                       </div>
@@ -689,6 +858,7 @@ const UsersTab = () => {
 // ── Root ──────────────────────────────────────────────────────────────────────
 export default function Admin() {
   const [tab, setTab]           = useState('dashboard');
+  const [lang, setLang]         = useState('ru');
   const { user, logout, token } = useAuthStore();
   const navigate                = useNavigate();
 
@@ -706,25 +876,29 @@ export default function Admin() {
   };
 
   return (
-    <div className="flex h-screen bg-pink-50/30 overflow-hidden font-sans">
-      <Sidebar
-        active={tab}
-        setActive={setTab}
-        user={user}
-        logout={() => { logout(); navigate('/'); }}
-      />
-      <main className="flex-1 overflow-y-auto">
-        <div className="max-w-6xl mx-auto px-6 py-8">
-          <motion.div
-            key={tab}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.25 }}
-          >
-            {tabs[tab]}
-          </motion.div>
-        </div>
-      </main>
-    </div>
+    <LangCtx.Provider value={lang}>
+      <div className="flex h-screen bg-pink-50/30 overflow-hidden font-sans">
+        <Sidebar
+          active={tab}
+          setActive={setTab}
+          user={user}
+          logout={() => { logout(); navigate('/'); }}
+          lang={lang}
+          setLang={setLang}
+        />
+        <main className="flex-1 overflow-y-auto">
+          <div className="max-w-6xl mx-auto px-6 py-8">
+            <motion.div
+              key={tab}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.25 }}
+            >
+              {tabs[tab]}
+            </motion.div>
+          </div>
+        </main>
+      </div>
+    </LangCtx.Provider>
   );
 }

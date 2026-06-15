@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShoppingBag, User, Search, Menu, X, ChevronDown } from 'lucide-react';
+import { ShoppingBag, User, Search, Menu, X, ChevronDown, Gem } from 'lucide-react';
 import useCartStore from '../../store/cartStore.js';
 import useAuthStore from '../../store/authStore.js';
 import useLanguageStore from '../../store/languageStore.js';
@@ -11,7 +11,7 @@ const LanguageToggle = () => {
   return (
     <button
       onClick={() => setLang(lang === 'ru' ? 'uz' : 'ru')}
-      className="text-xs font-medium px-2 py-1 rounded-full border border-charcoal-200 hover:border-pink-400 hover:text-pink-500 transition-all duration-200"
+      className="text-xs font-semibold px-3 py-1.5 rounded-full border border-charcoal-200 hover:border-pink-400 hover:text-pink-500 transition-all duration-200 tracking-wide"
     >
       {lang === 'ru' ? 'UZ' : 'RU'}
     </button>
@@ -19,15 +19,15 @@ const LanguageToggle = () => {
 };
 
 export default function Navbar() {
-  const [scrolled, setScrolled]     = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
+  const [scrolled, setScrolled]       = useState(false);
+  const [mobileOpen, setMobileOpen]   = useState(false);
+  const [searchOpen, setSearchOpen]   = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const navigate     = useNavigate();
-  const { items, openCart } = useCartStore();
-  const { user, logout }    = useAuthStore();
-  const { t }               = useLanguageStore();
+  const navigate                = useNavigate();
+  const { items, openCart }     = useCartStore();
+  const { user, logout }        = useAuthStore();
+  const { t }                   = useLanguageStore();
 
   const itemCount = items.reduce((s, i) => s + i.quantity, 0);
 
@@ -60,22 +60,31 @@ export default function Navbar() {
         }`}
       >
         {/* Top strip */}
-        <div className="bg-pink-400 text-white text-center text-xs py-1.5 font-medium tracking-wide">
-          ✦ &nbsp; ОПТОМ И В РОЗНИЦУ &nbsp; · &nbsp; Ташкент, Чорсу · Юнусабад · Абу Сахий &nbsp; ✦
+        <div className="bg-pink-400 text-white text-center text-xs py-1.5 font-medium tracking-widest">
+          {t('nav.top_strip')}
         </div>
 
         <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
+
             {/* Logo */}
-            <Link to="/" className="flex items-center gap-2 group">
-              <div className="w-9 h-9 rounded-full bg-pink-gradient flex items-center justify-center shadow-pink">
+            <Link to="/" className="flex items-center gap-2 group flex-shrink-0">
+              <img
+                src="/logo.png"
+                alt="Luxury Platok"
+                className="h-11 w-auto object-contain"
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                  e.target.nextSibling.style.display = 'flex';
+                }}
+              />
+              {/* Fallback if logo.png not yet added */}
+              <div className="hidden w-9 h-9 rounded-full bg-pink-gradient items-center justify-center shadow-pink">
                 <span className="text-white font-serif font-bold text-sm">LP</span>
               </div>
-              <div className="hidden sm:block">
-                <span className="font-serif text-lg font-semibold text-charcoal-800 group-hover:text-pink-500 transition-colors">
-                  Luxury Platok
-                </span>
-              </div>
+              <span className="hidden sm:block font-serif text-lg font-semibold text-charcoal-800 group-hover:text-pink-500 transition-colors">
+                Luxury Platok
+              </span>
             </Link>
 
             {/* Desktop nav links */}
@@ -98,14 +107,15 @@ export default function Navbar() {
               ))}
               <Link
                 to="/products?wholesale=true"
-                className="px-4 py-2 rounded-full text-sm font-medium text-gold-500 hover:bg-gold-100 transition-all duration-200 flex items-center gap-1"
+                className="px-4 py-2 rounded-full text-sm font-medium text-gold-500 hover:bg-gold-100 transition-all duration-200 flex items-center gap-1.5"
               >
-                ✦ {t('nav.wholesale')}
+                <Gem size={13} />
+                {t('nav.wholesale')}
               </Link>
             </div>
 
             {/* Right actions */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <LanguageToggle />
 
               <button
@@ -122,12 +132,12 @@ export default function Navbar() {
                     <User size={20} />
                     <ChevronDown size={14} className="hidden sm:block" />
                   </button>
-                  <div className="absolute right-0 top-full mt-1 w-44 bg-white rounded-2xl shadow-luxury-lg border border-charcoal-100 overflow-hidden opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+                  <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-2xl shadow-luxury-lg border border-charcoal-100 overflow-hidden opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
                     <Link to="/profile" className="block px-4 py-3 text-sm text-charcoal-700 hover:bg-pink-50 hover:text-pink-500 transition-colors">
                       {t('nav.profile')}
                     </Link>
                     <Link to="/orders" className="block px-4 py-3 text-sm text-charcoal-700 hover:bg-pink-50 hover:text-pink-500 transition-colors">
-                      Мои заказы
+                      {t('nav.my_orders')}
                     </Link>
                     {user.role === 'admin' && (
                       <Link to="/admin" className="block px-4 py-3 text-sm text-gold-500 hover:bg-gold-100 transition-colors">
@@ -162,7 +172,7 @@ export default function Navbar() {
                   <motion.span
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
-                    className="absolute -top-0.5 -right-0.5 w-4.5 h-4.5 min-w-[18px] min-h-[18px] bg-pink-400 text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none"
+                    className="absolute -top-0.5 -right-0.5 min-w-[18px] min-h-[18px] bg-pink-400 text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none px-1"
                   >
                     {itemCount}
                   </motion.span>
@@ -230,9 +240,9 @@ export default function Navbar() {
                 <Link
                   to="/products?wholesale=true"
                   onClick={() => setMobileOpen(false)}
-                  className="px-4 py-3 rounded-xl text-sm font-medium text-gold-500"
+                  className="px-4 py-3 rounded-xl text-sm font-medium text-gold-500 flex items-center gap-1.5"
                 >
-                  ✦ {t('nav.wholesale')}
+                  <Gem size={13} /> {t('nav.wholesale')}
                 </Link>
                 {!user && (
                   <Link
@@ -250,7 +260,7 @@ export default function Navbar() {
       </header>
 
       {/* Spacer for fixed header + top strip */}
-      <div className="h-[calc(40px+64px)]" />
+      <div className="h-[calc(28px+64px)]" />
     </>
   );
 }

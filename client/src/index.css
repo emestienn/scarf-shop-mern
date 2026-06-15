@@ -25,6 +25,15 @@
     font-family: 'Playfair Display', Georgia, serif;
   }
 
+  /* Hide scrollbar for horizontal carousels */
+  .hide-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
   ::selection {
     background-color: #E8A2B5;
     color: #fff;
