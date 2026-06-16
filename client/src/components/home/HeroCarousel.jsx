@@ -7,21 +7,21 @@ import useLanguageStore from '../../store/languageStore.js';
 const slides = [
   {
     id: 1,
-    image: '/images/hero-1.jpg',
+    image: 'https://i.pinimg.com/736x/33/08/0f/33080f284a7d5662ac9fe17a7bc448fc.jpg',
     fallbackGrad: 'from-pink-100 via-pink-50 to-white',
     accent: '#E8A2B5',
     cta: 'shop',
   },
   {
     id: 2,
-    image: '/images/hero-2.jpg',
+    image: 'https://i.pinimg.com/736x/c3/bc/90/c3bc901c1479993e7d989043aa5ee925.jpg',
     fallbackGrad: 'from-gold-100 via-white to-pink-50',
     accent: '#C9A96E',
     cta: 'shop',
   },
   {
     id: 3,
-    image: '/images/hero-3.jpg',
+    image: 'https://i.pinimg.com/736x/61/be/e0/61bee0b3a68d87c0ab1dbec0a44579b7.jpg',
     fallbackGrad: 'from-charcoal-100 via-white to-gold-50',
     accent: '#C9A96E',
     cta: 'wholesale',
@@ -32,6 +32,7 @@ export default function HeroCarousel() {
   const [current, setCurrent]       = useState(0);
   const [direction, setDirection]   = useState(1);
   const [imgError, setImgError]     = useState({});
+  const [imgLoaded, setImgLoaded]   = useState({});
   const { t, lang }                 = useLanguageStore();
 
   const next = useCallback(() => {
@@ -153,7 +154,10 @@ export default function HeroCarousel() {
                 <img
                   src={slide.image}
                   alt=""
-                  className="w-full h-full object-cover object-center"
+                  className={`w-full h-full object-cover object-center transition-opacity duration-500 ease-in-out ${
+                    imgLoaded[slide.id] ? 'opacity-100' : 'opacity-0'
+                  }`}
+                  onLoad={() => setImgLoaded((p) => ({ ...p, [slide.id]: true }))}
                   onError={() => setImgError((p) => ({ ...p, [slide.id]: true }))}
                 />
                 {/* Left-fade overlay for seamless blend */}

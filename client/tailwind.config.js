@@ -41,6 +41,7 @@ export default {
       fontFamily: {
         serif:  ['Playfair Display', 'Georgia', 'serif'],
         sans:   ['Inter', 'system-ui', 'sans-serif'],
+        script: ['Pinyon Script', 'Great Vibes', 'cursive'],
       },
       backgroundImage: {
         'luxury-gradient': 'linear-gradient(135deg, #FDF2F5 0%, #F9F0DF 100%)',

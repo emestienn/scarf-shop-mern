@@ -35,7 +35,14 @@ export const getProducts = asyncHandler(async (req, res) => {
   }
 
   if (search) {
-    filter.$text = { $search: search };
+    const re = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+    filter.$or = [
+      { 'name.ru': re },
+      { 'name.uz': re },
+      { 'description.ru': re },
+      { 'description.uz': re },
+      { material: re },
+    ];
   }
 
   const skip = (Number(page) - 1) * Number(limit);

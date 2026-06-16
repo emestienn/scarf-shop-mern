@@ -61,6 +61,8 @@ const useAuthStore = create(
         delete api.defaults.headers.common['Authorization'];
       },
 
+      updateUser: (user) => set({ user }),
+
       updateProfile: async (profileData) => {
         set({ isLoading: true, error: null });
         try {

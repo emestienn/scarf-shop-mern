@@ -81,8 +81,9 @@ export default function Navbar() {
               {/* Fallback if logo.png not yet added */}
               <div className="hidden w-9 h-9 rounded-full bg-pink-gradient items-center justify-center shadow-pink">
                 <span className="text-white font-serif font-bold text-sm">LP</span>
+                {/* <img src="/images/logo.jpg" alt="" className='rounded-full' /> */}
               </div>
-              <span className="hidden sm:block font-serif text-lg font-semibold text-charcoal-800 group-hover:text-pink-500 transition-colors">
+              <span className="hidden sm:block font-script text-2xl text-[#c9777f] group-hover:text-pink-500 transition-colors leading-none">
                 Luxury Platok
               </span>
             </Link>

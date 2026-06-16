@@ -13,6 +13,8 @@ const Login         = lazy(() => import('./pages/Auth/Login.jsx'));
 const Register      = lazy(() => import('./pages/Auth/Register.jsx'));
 const Stores        = lazy(() => import('./pages/Stores.jsx'));
 const Admin         = lazy(() => import('./pages/Admin.jsx'));
+const Profile       = lazy(() => import('./pages/Profile.jsx'));
+const Orders        = lazy(() => import('./pages/Orders.jsx'));
 
 const PageLoader = () => (
   <div className="min-h-screen flex items-center justify-center bg-luxury-gradient">
@@ -72,6 +74,10 @@ export default function App() {
           <Route path="/products/:slug" element={<Layout><ProductDetail /></Layout>} />
           <Route path="/stores"    element={<Layout><Stores /></Layout>} />
           <Route path="/checkout"  element={<Layout noFooter><Checkout /></Layout>} />
+
+          {/* Protected user routes */}
+          <Route path="/profile" element={<ProtectedRoute><Layout><Profile /></Layout></ProtectedRoute>} />
+          <Route path="/orders"  element={<ProtectedRoute><Layout><Orders /></Layout></ProtectedRoute>} />
 
           {/* Admin (no navbar/footer wrapper — has its own layout) */}
           <Route path="/admin" element={<Admin />} />

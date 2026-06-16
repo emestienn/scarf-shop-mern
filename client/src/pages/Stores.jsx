@@ -5,9 +5,11 @@ import useLanguageStore from '../store/languageStore.js';
 const stores = [
   {
     key: 'chorsu',
-    emoji: '🏪',
+    image: '/images/store.png',
     nameRu: 'Чорсу / Фунча',
-    nameUz: 'Cho\'rsu / Funcha',
+    nameUz: "Cho\'rsu / G'uncha",
+    labelRu: 'Рынок Чорсу',
+    labelUz: 'Cho\'rsu bozori',
     addressRu: 'Рынок Чорсу, Фунча павильон, Ташкент',
     addressUz: 'Cho\'rsu bozori, Funcha pavilon, Toshkent',
     phone: '+998 90 XXX XX XX',
@@ -15,14 +17,15 @@ const stores = [
     hoursUz: 'Du–Sha: 09:00–19:00',
     mapsUrl: 'https://maps.google.com/?q=Chorsu+Bazaar+Tashkent',
     yandexUrl: 'https://yandex.uz/maps/?text=Chorsu+Bazaar+Tashkent',
-    color: 'from-pink-100 to-pink-50',
-    accent: '#E8A2B5',
+    fallback: 'from-pink-300 to-pink-400',
   },
   {
     key: 'yunusabad',
-    emoji: '🏬',
+    image: '/images/store.png',
     nameRu: 'Юнусабад',
     nameUz: 'Yunusobod',
+    labelRu: 'ТЦ Юнусабад',
+    labelUz: 'Yunusobod savdo markazi',
     addressRu: 'Юнусабадский район, ТЦ, Ташкент',
     addressUz: 'Yunusobod tumani, savdo markazi, Toshkent',
     phone: '+998 90 XXX XX XX',
@@ -30,14 +33,15 @@ const stores = [
     hoursUz: 'Du–Sha: 09:00–19:00',
     mapsUrl: 'https://maps.google.com/?q=Yunusabad+Tashkent',
     yandexUrl: 'https://yandex.uz/maps/?text=Yunusabad+Tashkent',
-    color: 'from-gold-100 to-gold-50',
-    accent: '#C9A96E',
+    fallback: 'from-gold-400 to-gold-500',
   },
   {
     key: 'abu_sahiy',
-    emoji: '🛍',
+    image: '/images/store.png',
     nameRu: 'Абу Сахий',
     nameUz: 'Abu Sahiy',
+    labelRu: 'Рынок Абу Сахий',
+    labelUz: 'Abu Sahiy bozori',
     addressRu: 'Рынок Абу Сахий, Ташкент',
     addressUz: 'Abu Sahiy bozori, Toshkent',
     phone: '+998 90 XXX XX XX',
@@ -45,8 +49,7 @@ const stores = [
     hoursUz: 'Du–Sha: 09:00–18:00',
     mapsUrl: 'https://maps.google.com/?q=Abu+Sahiy+Bazaar+Tashkent',
     yandexUrl: 'https://yandex.uz/maps/?text=Abu+Sahiy+Tashkent',
-    color: 'from-charcoal-100 to-charcoal-50',
-    accent: '#7A7A7A',
+    fallback: 'from-charcoal-500 to-charcoal-700',
   },
 ];
 
@@ -82,12 +85,25 @@ export default function Stores() {
               className="bg-white rounded-3xl shadow-luxury overflow-hidden"
             >
               <div className="flex flex-col md:flex-row">
-                {/* Colorful left panel */}
-                <div className={`bg-gradient-to-br ${store.color} p-8 md:w-52 flex-shrink-0 flex flex-col items-center justify-center text-center`}>
-                  <span className="text-5xl mb-3">{store.emoji}</span>
-                  <h2 className="font-serif text-xl text-charcoal-800">
-                    {lang === 'uz' ? store.nameUz : store.nameRu}
-                  </h2>
+                {/* Image left panel */}
+                <div className={`relative md:w-64 flex-shrink-0 min-h-48 md:min-h-0 overflow-hidden bg-gradient-to-br ${store.fallback}`}>
+                  <img
+                    src={store.image}
+                    alt={lang === 'uz' ? store.nameUz : store.nameRu}
+                    className="absolute inset-0 w-full h-full object-cover"
+                    onError={(e) => { e.target.style.display = 'none'; }}
+                  />
+                  {/* Scrim overlay — darker at bottom for legibility */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-charcoal-900/80 via-charcoal-900/30 to-transparent" />
+                  {/* Name */}
+                  <div className="relative z-10 h-full flex flex-col justify-end p-5 min-h-48">
+                    <p className="text-[11px] text-white/60 font-medium uppercase tracking-widest mb-1">
+                      {lang === 'uz' ? store.labelUz : store.labelRu}
+                    </p>
+                    <h2 className="font-serif text-xl text-white leading-snug drop-shadow">
+                      {lang === 'uz' ? store.nameUz : store.nameRu}
+                    </h2>
+                  </div>
                 </div>
 
                 {/* Info */}

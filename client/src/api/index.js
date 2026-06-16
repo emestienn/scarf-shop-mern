@@ -43,6 +43,35 @@ export const authApi = {
   applyWholesale:   (data) => api.post('/auth/wholesale-apply', data),
 };
 
+export const uploadApi = {
+  uploadImage: async (file) => {
+    const fd = new FormData();
+    fd.append('image', file);
+    // Use fetch (not axios) — the axios instance has Content-Type: application/json as a global
+    // default which causes Axios 1.x to JSON-serialize FormData instead of sending multipart.
+    // fetch always lets the browser set the correct multipart/form-data; boundary= header.
+    const token = api.defaults.headers.common['Authorization'];
+    const res = await fetch('/api/upload', {
+      method: 'POST',
+      headers: token ? { Authorization: token } : {},
+      body: fd,
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      const err = new Error(data.message || 'Upload failed');
+      err.response = { data };
+      throw err;
+    }
+    return { data };
+  },
+};
+
+export const usersApi = {
+  getProfile:     ()     => api.get('/users/profile'),
+  updateProfile:  (data) => api.put('/users/profile', data),
+  changePassword: (data) => api.put('/users/change-password', data),
+};
+
 export const adminApi = {
   getDashboard:      ()         => api.get('/admin/dashboard'),
   getUsers:          (params)   => api.get('/admin/users', { params }),

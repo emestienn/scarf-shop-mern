@@ -7,10 +7,10 @@ import {
   RefreshCw, Plus, Edit2, Trash2, Search, Eye,
   Truck, Store, MessageSquare, RotateCcw, Settings2,
   BadgeCheck, Star, Award, Sparkles, Link2, UserX,
-  CreditCard, AlertCircle,
+  CreditCard, AlertCircle, Upload, X, Image, Palette, Ruler, Menu,
 } from 'lucide-react';
 import useAuthStore from '../store/authStore.js';
-import { adminApi } from '../api/index.js';
+import { adminApi, uploadApi } from '../api/index.js';
 
 // ── Bilingual strings ─────────────────────────────────────────────────────────
 const AT = {
@@ -43,10 +43,23 @@ const AT = {
       name_ru: 'Название (RU) *', name_uz: 'Название (UZ)',
       slug: 'Slug — авто если пусто', desc_ru: 'Описание (RU)', desc_uz: 'Описание (UZ)',
       category: 'Категория', material: 'Материал', pattern: 'Узор',
-      price: 'Цена (UZS) *', stock: 'Остаток (шт.) *', photos: 'Фото (URLs через запятую)',
+      price: 'Цена (UZS) *', stock: 'Остаток (шт.) *',
       cancel: 'Отмена', save: 'Сохранить', saving: 'Сохранение...',
       delete_confirm: 'Удалить товар?', error_save: 'Ошибка сохранения',
       flags: { featured: 'Рекомендуемый', bestseller: 'Хит продаж', new: 'Новинка' },
+      images_section: 'Изображения товара',
+      img_upload: 'Загрузить файл',
+      img_url: 'Вставить URL',
+      img_url_ph: 'https://example.com/image.jpg',
+      img_url_add: 'Добавить',
+      colors_section: 'Варианты цвета',
+      color_add: 'Добавить цвет',
+      color_name_ph: 'Название цвета (напр. Белый)',
+      color_img_ph: 'URL изображения для этого цвета',
+      sizes_section: 'Размеры',
+      size_add: 'Добавить',
+      size_ph: 'напр. S, M, L или 90×90',
+      uploading: 'Загрузка файлов...',
     },
     users: {
       title: 'Клиенты', cols: ['Клиент', 'Email', 'Телефон', 'Роль', 'Telegram', 'Зарег.', ''],
@@ -84,10 +97,23 @@ const AT = {
       name_ru: 'Nomi (RU) *', name_uz: 'Nomi (UZ)',
       slug: 'Slug — bo\'sh bo\'lsa avtomatik', desc_ru: 'Tavsif (RU)', desc_uz: 'Tavsif (UZ)',
       category: 'Kategoriya', material: 'Material', pattern: 'Naqsh',
-      price: 'Narx (UZS) *', stock: 'Qoldiq (ta) *', photos: 'Rasmlar (vergul bilan URLlar)',
+      price: 'Narx (UZS) *', stock: 'Qoldiq (ta) *',
       cancel: 'Bekor qilish', save: 'Saqlash', saving: 'Saqlanmoqda...',
       delete_confirm: 'Mahsulotni o\'chirish?', error_save: 'Saqlashda xatolik',
       flags: { featured: 'Tavsiya etilgan', bestseller: 'Eng ko\'p sotilgan', new: 'Yangi' },
+      images_section: 'Mahsulot rasmlari',
+      img_upload: 'Fayl yuklash',
+      img_url: 'URL qo\'shish',
+      img_url_ph: 'https://example.com/rasm.jpg',
+      img_url_add: 'Qo\'shish',
+      colors_section: 'Rang variantlari',
+      color_add: 'Rang qo\'shish',
+      color_name_ph: 'Rang nomi (mas. Oq)',
+      color_img_ph: 'Bu rang uchun rasm URL',
+      sizes_section: 'O\'lchamlar',
+      size_add: 'Qo\'shish',
+      size_ph: 'mas. S, M, L yoki 90×90',
+      uploading: 'Fayllar yuklanmoqda...',
     },
     users: {
       title: 'Mijozlar', cols: ['Mijoz', 'Email', 'Telefon', 'Rol', 'Telegram', 'Ro\'yxat', ''],
@@ -158,7 +184,7 @@ const StatCard = ({ icon, label, value, sub, color = 'pink' }) => {
 };
 
 // ── Sidebar ───────────────────────────────────────────────────────────────────
-const Sidebar = ({ active, setActive, user, logout, lang, setLang }) => {
+const Sidebar = ({ active, setActive, user, logout, lang, setLang, mobileOpen, setMobileOpen }) => {
   const at = useLang();
   const NAV = [
     { id: 'dashboard', icon: <LayoutDashboard size={18} /> },
@@ -168,69 +194,91 @@ const Sidebar = ({ active, setActive, user, logout, lang, setLang }) => {
   ];
 
   return (
-    <aside className="w-56 bg-white border-r border-pink-100 flex flex-col h-screen sticky top-0 flex-shrink-0 shadow-luxury">
-      <div className="px-5 py-5 border-b border-pink-100">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <img
-              src="/logo.png"
-              alt="LP"
-              className="h-8 w-auto object-contain"
-              onError={(e) => {
-                e.target.style.display = 'none';
-                e.target.nextSibling.style.display = 'flex';
-              }}
-            />
-            <div className="hidden w-8 h-8 rounded-full bg-pink-gradient items-center justify-center">
-              <span className="font-serif font-bold text-xs text-white">LP</span>
+    <>
+      {/* Mobile/tablet overlay */}
+      {mobileOpen && (
+        <div
+          onClick={() => setMobileOpen(false)}
+          className="fixed inset-0 bg-charcoal-900/40 z-30 lg:hidden"
+        />
+      )}
+
+      <aside
+        className={`w-64 lg:w-56 bg-white border-r border-pink-100 flex flex-col h-screen fixed lg:sticky top-0 left-0 flex-shrink-0 shadow-luxury z-40 transition-transform duration-300 lg:translate-x-0 ${
+          mobileOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        <div className="px-5 py-5 border-b border-pink-100">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <img
+                src="/logo.png"
+                alt="LP"
+                className="h-8 w-auto object-contain"
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                  e.target.nextSibling.style.display = 'flex';
+                }}
+              />
+              <div className="hidden w-8 h-8 rounded-full bg-pink-gradient items-center justify-center">
+                <span className="font-serif font-bold text-xs text-white">LP</span>
+              </div>
+              <div>
+                <p className="font-bold text-sm text-charcoal-800 leading-none font-script ">Luxury Platok</p>
+                <p className="text-[10px] text-charcoal-400 mt-0.5">Admin Panel</p>
+              </div>
             </div>
-            <div>
-              <p className="font-serif text-sm text-charcoal-800 leading-none">Luxury Platok</p>
-              <p className="text-[10px] text-charcoal-400 mt-0.5">Admin Panel</p>
+            <div className="flex items-center gap-1">
+              <LangToggle lang={lang} setLang={setLang} />
+              <button
+                onClick={() => setMobileOpen(false)}
+                className="lg:hidden p-1.5 rounded-full hover:bg-pink-50 text-charcoal-400"
+              >
+                <X size={16} />
+              </button>
             </div>
           </div>
-          <LangToggle lang={lang} setLang={setLang} />
         </div>
-      </div>
 
-      <nav className="flex-1 px-3 py-4 space-y-1">
-        {NAV.map((n) => (
+        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+          {NAV.map((n) => (
+            <button
+              key={n.id}
+              onClick={() => { setActive(n.id); setMobileOpen(false); }}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                active === n.id
+                  ? 'bg-pink-50 text-pink-500 border border-pink-200'
+                  : 'text-charcoal-500 hover:bg-pink-50/60 hover:text-pink-400'
+              }`}
+            >
+              {n.icon}
+              {at(`nav.${n.id}`)}
+            </button>
+          ))}
+        </nav>
+
+        <div className="px-3 py-4 border-t border-pink-100">
+          <div className="flex items-center gap-2 px-3 mb-3">
+            <div className="w-7 h-7 rounded-full bg-pink-400 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+              {user?.name?.[0]?.toUpperCase()}
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs text-charcoal-700 font-medium truncate">{user?.name}</p>
+              <p className="text-[10px] text-charcoal-400">{at('sidebar.role')}</p>
+            </div>
+          </div>
+          <Link to="/" className="flex items-center gap-2 px-3 py-2 text-xs text-charcoal-400 hover:text-pink-500 transition-colors">
+            <Eye size={14} /> {at('sidebar.view_site')}
+          </Link>
           <button
-            key={n.id}
-            onClick={() => setActive(n.id)}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
-              active === n.id
-                ? 'bg-pink-50 text-pink-500 border border-pink-200'
-                : 'text-charcoal-500 hover:bg-pink-50/60 hover:text-pink-400'
-            }`}
+            onClick={logout}
+            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-charcoal-400 hover:text-red-400 transition-colors"
           >
-            {n.icon}
-            {at(`nav.${n.id}`)}
+            <LogOut size={14} /> {at('sidebar.logout')}
           </button>
-        ))}
-      </nav>
-
-      <div className="px-3 py-4 border-t border-pink-100">
-        <div className="flex items-center gap-2 px-3 mb-3">
-          <div className="w-7 h-7 rounded-full bg-pink-400 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-            {user?.name?.[0]?.toUpperCase()}
-          </div>
-          <div className="min-w-0">
-            <p className="text-xs text-charcoal-700 font-medium truncate">{user?.name}</p>
-            <p className="text-[10px] text-charcoal-400">{at('sidebar.role')}</p>
-          </div>
         </div>
-        <Link to="/" className="flex items-center gap-2 px-3 py-2 text-xs text-charcoal-400 hover:text-pink-500 transition-colors">
-          <Eye size={14} /> {at('sidebar.view_site')}
-        </Link>
-        <button
-          onClick={logout}
-          className="w-full flex items-center gap-2 px-3 py-2 text-xs text-charcoal-400 hover:text-red-400 transition-colors"
-        >
-          <LogOut size={14} /> {at('sidebar.logout')}
-        </button>
-      </div>
-    </aside>
+      </aside>
+    </>
   );
 };
 
@@ -490,7 +538,10 @@ const EMPTY_PRODUCT = {
   category: 'platok', material: 'silk', pattern: 'solid',
   retailPrice: '', stock: '',
   isFeatured: false, isBestSeller: false, isNewArrival: false,
-  images: '',
+  imageUrls: [],
+  imageFiles: [],
+  colors: [],
+  sizes: [],
 };
 
 const ProductsTab = () => {
@@ -501,6 +552,42 @@ const ProductsTab = () => {
   const [modal, setModal]       = useState(null);
   const [form, setForm]         = useState(EMPTY_PRODUCT);
   const [saving, setSaving]     = useState(false);
+  const [imgTab, setImgTab]     = useState('file');
+  const [urlInput, setUrlInput] = useState('');
+  const [sizeInput, setSizeInput] = useState('');
+
+  const addImageFiles = (files) => {
+    setForm(f => ({ ...f, imageFiles: [...f.imageFiles, ...Array.from(files)] }));
+  };
+  const addImageUrl = () => {
+    const url = urlInput.trim();
+    if (url) { setForm(f => ({ ...f, imageUrls: [...f.imageUrls, url] })); setUrlInput(''); }
+  };
+  const removeImage = (type, idx) => {
+    if (type === 'file') setForm(f => ({ ...f, imageFiles: f.imageFiles.filter((_, i) => i !== idx) }));
+    else setForm(f => ({ ...f, imageUrls: f.imageUrls.filter((_, i) => i !== idx) }));
+  };
+
+  const addColor = () => setForm(f => ({ ...f, colors: [...f.colors, { name: '', hex: '#C9A96E', imageUrl: '', imageFile: null, previewSrc: '' }] }));
+  const removeColor = (idx) => setForm(f => ({ ...f, colors: f.colors.filter((_, i) => i !== idx) }));
+  const updateColor = (idx, key, value) => setForm(f => ({
+    ...f,
+    colors: f.colors.map((c, i) => i === idx ? { ...c, [key]: value } : c),
+  }));
+  const handleColorFile = (idx, file) => {
+    if (!file) return;
+    const previewSrc = URL.createObjectURL(file);
+    setForm(f => ({
+      ...f,
+      colors: f.colors.map((c, i) => i === idx ? { ...c, imageFile: file, previewSrc } : c),
+    }));
+  };
+
+  const addSize = () => {
+    const label = sizeInput.trim();
+    if (label) { setForm(f => ({ ...f, sizes: [...f.sizes, { label, dimensions: '' }] })); setSizeInput(''); }
+  };
+  const removeSize = (idx) => setForm(f => ({ ...f, sizes: f.sizes.filter((_, i) => i !== idx) }));
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -520,7 +607,15 @@ const ProductsTab = () => {
       slug: p.slug || '', category: p.category, material: p.material,
       pattern: p.pattern || 'solid', retailPrice: p.retailPrice, stock: p.stock,
       isFeatured: p.isFeatured, isBestSeller: p.isBestSeller, isNewArrival: p.isNewArrival,
-      images: (p.images || []).join(', '), _id: p._id,
+      imageUrls: p.images || [],
+      imageFiles: [],
+      colors: (p.colors || []).map(c => ({
+        name: c.name || '', hex: c.hex || '#C9A96E',
+        imageUrl: c.images?.[0] || '', imageFile: null,
+        previewSrc: c.images?.[0] || '',
+      })),
+      sizes: (p.sizes || []).map(s => ({ label: s.label || s, dimensions: s.dimensions || '' })),
+      _id: p._id,
     });
     setModal('edit');
   };
@@ -531,6 +626,22 @@ const ProductsTab = () => {
     e.preventDefault();
     setSaving(true);
     try {
+      const uploadFile = async (file) => {
+        const { data } = await uploadApi.uploadImage(file);
+        return data.url;
+      };
+
+      const uploadedImgUrls = await Promise.all(form.imageFiles.map(uploadFile));
+      const allImages = [...form.imageUrls, ...uploadedImgUrls];
+
+      const resolvedColors = await Promise.all(
+        form.colors.map(async (c) => {
+          let imgUrl = c.imageUrl;
+          if (c.imageFile) imgUrl = await uploadFile(c.imageFile);
+          return { name: c.name, hex: c.hex, images: imgUrl ? [imgUrl] : [], stock: 0 };
+        })
+      );
+
       const slugValue = form.slug ||
         form.nameRu.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/gi, '').replace(/-+/g, '-');
       const payload = {
@@ -539,7 +650,9 @@ const ProductsTab = () => {
         slug: slugValue, category: form.category, material: form.material, pattern: form.pattern,
         retailPrice: Number(form.retailPrice), stock: Number(form.stock),
         isFeatured: form.isFeatured, isBestSeller: form.isBestSeller, isNewArrival: form.isNewArrival,
-        images: form.images.split(',').map(s => s.trim()).filter(Boolean),
+        images: allImages,
+        colors: resolvedColors,
+        sizes: form.sizes,
         isAvailable: true,
       };
       if (modal === 'edit' && form._id) await adminApi.updateProduct(form._id, payload);
@@ -649,15 +762,15 @@ const ProductsTab = () => {
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
               onClick={e => e.stopPropagation()}
-              className="bg-white rounded-3xl shadow-luxury-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+              className="bg-white rounded-3xl shadow-luxury-lg w-full max-w-3xl max-h-[90vh] overflow-y-auto"
             >
               <div className="p-6 border-b border-charcoal-100 sticky top-0 bg-white z-10">
                 <h3 className="font-serif text-xl text-charcoal-800">
                   {modal === 'edit' ? at('products.modal_edit') : at('products.modal_new')}
                 </h3>
               </div>
-              <form onSubmit={handleSave} className="p-6 space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+              <form onSubmit={handleSave} className="p-4 sm:p-6 space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-medium text-charcoal-600 mb-1">{at('products.name_ru')}</label>
                     <input value={form.nameRu} onChange={e => F('nameRu', e.target.value)} className="input-field text-sm" required />
@@ -671,7 +784,7 @@ const ProductsTab = () => {
                   <label className="block text-xs font-medium text-charcoal-600 mb-1">{at('products.slug')}</label>
                   <input value={form.slug} onChange={e => F('slug', e.target.value)} className="input-field text-sm" placeholder="nazvanie-tovara" />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-medium text-charcoal-600 mb-1">{at('products.desc_ru')}</label>
                     <textarea value={form.descRu} onChange={e => F('descRu', e.target.value)} className="input-field text-sm resize-none" rows={3} />
@@ -681,7 +794,7 @@ const ProductsTab = () => {
                     <textarea value={form.descUz} onChange={e => F('descUz', e.target.value)} className="input-field text-sm resize-none" rows={3} />
                   </div>
                 </div>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
                     <label className="block text-xs font-medium text-charcoal-600 mb-1">{at('products.category')}</label>
                     <select value={form.category} onChange={e => F('category', e.target.value)} className="input-field text-sm">
@@ -711,10 +824,132 @@ const ProductsTab = () => {
                     <input type="number" min="0" value={form.stock} onChange={e => F('stock', e.target.value)} className="input-field text-sm" required />
                   </div>
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-charcoal-600 mb-1">{at('products.photos')}</label>
-                  <textarea value={form.images} onChange={e => F('images', e.target.value)} className="input-field text-sm resize-none" rows={2} placeholder="https://..., https://..." />
+                {/* Images */}
+                <div className="border border-charcoal-100 rounded-2xl p-4 space-y-3">
+                  <h4 className="text-sm font-semibold text-charcoal-700 flex items-center gap-2">
+                    <Image size={14} className="text-pink-400" /> {at('products.images_section')}
+                  </h4>
+                  <div className="flex gap-2 mb-2">
+                    {['file', 'url'].map(tab => (
+                      <button key={tab} type="button" onClick={() => setImgTab(tab)}
+                        className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${imgTab === tab ? 'bg-pink-400 text-white' : 'bg-charcoal-100 text-charcoal-600 hover:bg-pink-50'}`}>
+                        {tab === 'file' ? at('products.img_upload') : at('products.img_url')}
+                      </button>
+                    ))}
+                  </div>
+                  {imgTab === 'file' ? (
+                    <label className="flex flex-col items-center gap-2 border-2 border-dashed border-pink-200 rounded-xl p-5 text-center cursor-pointer hover:border-pink-400 hover:bg-pink-50/30 transition-all">
+                      <input type="file" accept="image/*" multiple className="hidden" onChange={e => addImageFiles(e.target.files)} />
+                      <Upload size={22} className="text-pink-300" />
+                      <span className="text-xs text-charcoal-400">{at('products.img_upload')}</span>
+                    </label>
+                  ) : (
+                    <div className="flex gap-2">
+                      <input value={urlInput} onChange={e => setUrlInput(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addImageUrl())}
+                        placeholder={at('products.img_url_ph')} className="input-field text-sm flex-1" />
+                      <button type="button" onClick={addImageUrl} className="btn-outline text-sm px-3 whitespace-nowrap">
+                        + {at('products.img_url_add')}
+                      </button>
+                    </div>
+                  )}
+                  {(form.imageFiles.length > 0 || form.imageUrls.length > 0) && (
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {form.imageFiles.map((file, i) => (
+                        <div key={`f-${i}`} className="relative w-16 h-16 flex-shrink-0">
+                          <img src={URL.createObjectURL(file)} alt="" className="w-full h-full object-cover rounded-xl border border-pink-100" />
+                          <button type="button" onClick={() => removeImage('file', i)}
+                            className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center shadow-sm hover:bg-red-600">
+                            <X size={10} />
+                          </button>
+                        </div>
+                      ))}
+                      {form.imageUrls.map((url, i) => (
+                        <div key={`u-${i}`} className="relative w-16 h-16 flex-shrink-0">
+                          <img src={url} alt="" className="w-full h-full object-cover rounded-xl border border-pink-100"
+                            onError={e => { e.target.style.display='none'; }} />
+                          <button type="button" onClick={() => removeImage('url', i)}
+                            className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center shadow-sm hover:bg-red-600">
+                            <X size={10} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
+
+                {/* Colors */}
+                <div className="border border-charcoal-100 rounded-2xl p-4 space-y-3">
+                  <h4 className="text-sm font-semibold text-charcoal-700 flex items-center gap-2">
+                    <Palette size={14} className="text-pink-400" /> {at('products.colors_section')}
+                  </h4>
+                  {form.colors.map((color, i) => (
+                    <div key={i} className="flex gap-3 items-start p-3 bg-charcoal-50 rounded-xl">
+                      <div className="flex flex-col items-center gap-1">
+                        <input type="color" value={color.hex}
+                          onChange={e => updateColor(i, 'hex', e.target.value)}
+                          className="w-10 h-10 rounded-lg cursor-pointer border-2 border-charcoal-200 p-0.5" />
+                        <span className="text-[9px] text-charcoal-400 font-mono">{color.hex}</span>
+                      </div>
+                      <div className="flex-1 space-y-2 min-w-0">
+                        <input placeholder={at('products.color_name_ph')} value={color.name}
+                          onChange={e => updateColor(i, 'name', e.target.value)}
+                          className="input-field text-sm w-full" />
+                        <div className="flex gap-2 items-center">
+                          <label className="flex-shrink-0 cursor-pointer">
+                            <input type="file" accept="image/*" className="hidden"
+                              onChange={e => handleColorFile(i, e.target.files[0])} />
+                            <span className="flex items-center gap-1 px-2 py-1.5 text-xs border border-charcoal-200 rounded-lg hover:border-pink-300 hover:text-pink-500 transition-colors whitespace-nowrap">
+                              <Upload size={11} /> Upload
+                            </span>
+                          </label>
+                          <input placeholder={at('products.color_img_ph')} value={color.imageUrl}
+                            onChange={e => { updateColor(i, 'imageUrl', e.target.value); updateColor(i, 'previewSrc', e.target.value); }}
+                            className="input-field text-xs flex-1 min-w-0" />
+                        </div>
+                        {color.previewSrc && (
+                          <img src={color.previewSrc} alt="" className="w-20 h-14 object-cover rounded-lg border border-charcoal-100"
+                            onError={e => { e.target.style.display='none'; }} />
+                        )}
+                      </div>
+                      <button type="button" onClick={() => removeColor(i)} className="text-charcoal-300 hover:text-red-400 transition-colors flex-shrink-0">
+                        <X size={16} />
+                      </button>
+                    </div>
+                  ))}
+                  <button type="button" onClick={addColor}
+                    className="flex items-center gap-1.5 px-3 py-2 text-sm border border-dashed border-pink-200 text-pink-400 rounded-xl hover:border-pink-400 hover:bg-pink-50/30 transition-all w-full justify-center">
+                    <Plus size={14} /> {at('products.color_add')}
+                  </button>
+                </div>
+
+                {/* Sizes */}
+                <div className="border border-charcoal-100 rounded-2xl p-4 space-y-3">
+                  <h4 className="text-sm font-semibold text-charcoal-700 flex items-center gap-2">
+                    <Ruler size={14} className="text-pink-400" /> {at('products.sizes_section')}
+                  </h4>
+                  <div className="flex gap-2">
+                    <input value={sizeInput} onChange={e => setSizeInput(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addSize())}
+                      placeholder={at('products.size_ph')} className="input-field text-sm flex-1" />
+                    <button type="button" onClick={addSize} className="btn-primary text-sm px-4 whitespace-nowrap">
+                      + {at('products.size_add')}
+                    </button>
+                  </div>
+                  {form.sizes.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {form.sizes.map((s, i) => (
+                        <span key={i} className="inline-flex items-center gap-1.5 px-3 py-1 bg-pink-50 border border-pink-200 text-pink-700 text-xs font-medium rounded-full">
+                          {s.label}
+                          <button type="button" onClick={() => removeSize(i)} className="hover:text-red-500 transition-colors">
+                            <X size={10} />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 <div className="flex gap-6 flex-wrap">
                   {[
                     ['isFeatured', 'flags.featured',   <Star size={14} className="text-pink-400"/>],
@@ -859,6 +1094,7 @@ const UsersTab = () => {
 export default function Admin() {
   const [tab, setTab]           = useState('dashboard');
   const [lang, setLang]         = useState('ru');
+  const [mobileOpen, setMobileOpen] = useState(false);
   const { user, logout, token } = useAuthStore();
   const navigate                = useNavigate();
 
@@ -885,9 +1121,23 @@ export default function Admin() {
           logout={() => { logout(); navigate('/'); }}
           lang={lang}
           setLang={setLang}
+          mobileOpen={mobileOpen}
+          setMobileOpen={setMobileOpen}
         />
-        <main className="flex-1 overflow-y-auto">
-          <div className="max-w-6xl mx-auto px-6 py-8">
+        <main className="flex-1 overflow-y-auto min-w-0">
+          {/* Mobile/tablet top bar */}
+          <div className="lg:hidden sticky top-0 z-20 bg-white border-b border-pink-100 px-4 py-3 flex items-center justify-between shadow-luxury">
+            <button
+              onClick={() => setMobileOpen(true)}
+              className="p-2 rounded-full hover:bg-pink-50 text-charcoal-700"
+            >
+              <Menu size={20} />
+            </button>
+            <span className="font-serif text-sm text-charcoal-800">{AT[lang].nav[tab]}</span>
+            <div className="w-9" />
+          </div>
+
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
             <motion.div
               key={tab}
               initial={{ opacity: 0, y: 10 }}

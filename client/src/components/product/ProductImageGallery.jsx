@@ -1,11 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ZoomIn, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { ZoomIn, ChevronLeft, ChevronRight, X, Package } from 'lucide-react';
 
 export default function ProductImageGallery({ images = [], productName = '' }) {
   const [active, setActive]   = useState(0);
   const [zoomed, setZoomed]   = useState(false);
   const [zoomPos, setZoomPos] = useState({ x: 50, y: 50 });
+
+  useEffect(() => { setActive(0); }, [images]);
 
   const handleMouseMove = (e) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -20,7 +22,7 @@ export default function ProductImageGallery({ images = [], productName = '' }) {
   if (!images.length) {
     return (
       <div className="aspect-square bg-pink-50 rounded-3xl flex items-center justify-center">
-        <span className="text-charcoal-300 text-6xl">🧣</span>
+        <Package size={56} className="text-pink-200" />
       </div>
     );
   }

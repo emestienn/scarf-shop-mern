@@ -17,6 +17,8 @@ import productRoutes from './routes/products.js';
 import orderRoutes from './routes/orders.js';
 import paymentRoutes from './routes/payments.js';
 import adminRoutes from './routes/admin.js';
+import uploadRoutes from './routes/upload.js';
+import userRoutes from './routes/users.js';
 
 dotenv.config();
 connectDB().then(() => initBot());
@@ -54,6 +56,10 @@ app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/upload', uploadRoutes);
+app.use('/api/users', userRoutes);
+
+app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads')));
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', brand: 'Luxury Platok', timestamp: new Date().toISOString() });
