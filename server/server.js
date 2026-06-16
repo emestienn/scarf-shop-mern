@@ -25,7 +25,18 @@ connectDB().then(() => initBot());
 
 const app = express();
 
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+      // Default CSP only allows images from our own origin ('self') or
+      // data: URIs, which silently blocks admin-pasted external image URLs
+      // (Unsplash, Pinterest, etc.) once the production build is served by
+      // Express instead of the Vite dev server. Allow any https image host.
+      'img-src': ["'self'", 'data:', 'https:'],
+    },
+  },
+}));
 app.use(cors({
   origin: process.env.CLIENT_URL || 'http://localhost:5173',
   credentials: true,
