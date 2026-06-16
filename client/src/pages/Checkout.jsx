@@ -6,6 +6,7 @@ import useCartStore from '../store/cartStore.js';
 import useAuthStore from '../store/authStore.js';
 import useLanguageStore from '../store/languageStore.js';
 import { ordersApi } from '../api/index.js';
+import { PLACEHOLDER_IMAGE, handleImageError } from '../utils/image.js';
 
 const formatPrice = (n) => new Intl.NumberFormat('uz-UZ').format(n);
 
@@ -342,7 +343,7 @@ export default function Checkout() {
               <ul className="space-y-3 mb-5">
                 {items.map((item) => (
                   <li key={item.key} className="flex gap-3">
-                    <img src={item.image || '/placeholder.jpg'} alt={item.name} className="w-14 h-14 object-cover rounded-xl flex-shrink-0" />
+                    <img src={item.image || PLACEHOLDER_IMAGE} alt={item.name} className="w-14 h-14 object-cover rounded-xl flex-shrink-0" onError={handleImageError} />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-charcoal-700 line-clamp-2">{item.name}</p>
                       <p className="text-xs text-charcoal-400">{item.quantity} шт.</p>

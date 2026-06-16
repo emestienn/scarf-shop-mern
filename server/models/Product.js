@@ -1,5 +1,14 @@
 import mongoose from 'mongoose';
 
+// Accept secure absolute URLs (pasted external links) or our own relative
+// upload path (/uploads/...). Rejects http:// (mixed content on HTTPS
+// deployments) and unsafe schemes like data:/javascript:.
+const isAllowedImageUrl = (url) => /^https:\/\/|^\/uploads\//.test(url);
+const imageUrlValidator = {
+  validator: isAllowedImageUrl,
+  message: (props) => `"${props.value}" is not a valid image URL — it must start with https:// or be an uploaded file path`,
+};
+
 const reviewSchema = new mongoose.Schema(
   {
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
@@ -57,7 +66,7 @@ const productSchema = new mongoose.Schema(
       {
         name: { type: String, required: true },
         hex: { type: String, required: true },
-        images: [{ type: String }],
+        images: [{ type: String, validate: imageUrlValidator }],
         stock: { type: Number, default: 0 },
       },
     ],
@@ -67,7 +76,7 @@ const productSchema = new mongoose.Schema(
         dimensions: { type: String },
       },
     ],
-    images: [{ type: String, required: true }],
+    images: [{ type: String, required: true, validate: imageUrlValidator }],
     retailPrice: { type: Number, required: true, min: 0 },
     compareAtPrice: { type: Number, min: 0 },
     wholesaleTiers: [wholesaleTierSchema],

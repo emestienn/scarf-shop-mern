@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ZoomIn, ChevronLeft, ChevronRight, X, Package } from 'lucide-react';
+import { handleImageError } from '../../utils/image.js';
 
 export default function ProductImageGallery({ images = [], productName = '' }) {
   const [active, setActive]   = useState(0);
@@ -46,6 +47,7 @@ export default function ProductImageGallery({ images = [], productName = '' }) {
               exit={{ opacity: 0 }}
               transition={{ duration: 0.3 }}
               className="w-full h-full object-cover"
+              onError={handleImageError}
             />
           </AnimatePresence>
 
@@ -84,7 +86,7 @@ export default function ProductImageGallery({ images = [], productName = '' }) {
                   i === active ? 'border-pink-400 shadow-pink' : 'border-transparent hover:border-pink-200'
                 }`}
               >
-                <img src={img} alt={`Thumbnail ${i + 1}`} className="w-full h-full object-cover" />
+                <img src={img} alt={`Thumbnail ${i + 1}`} className="w-full h-full object-cover" onError={handleImageError} />
               </button>
             ))}
           </div>
@@ -133,6 +135,7 @@ export default function ProductImageGallery({ images = [], productName = '' }) {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.8, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
+              onError={handleImageError}
               className="max-w-[90vw] max-h-[90vh] object-contain rounded-2xl"
             />
           </motion.div>

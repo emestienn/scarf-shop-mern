@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import useLanguageStore from '../store/languageStore.js';
 import { ordersApi } from '../api/index.js';
+import { PLACEHOLDER_IMAGE, handleImageError } from '../utils/image.js';
 
 const formatPrice = (n) => new Intl.NumberFormat('uz-UZ').format(n);
 const formatDate = (d) => new Date(d).toLocaleDateString('ru-RU', {
@@ -117,9 +118,10 @@ export default function Orders() {
                       {order.items?.map((item, i) => (
                         <img
                           key={i}
-                          src={item.image || '/placeholder.jpg'}
+                          src={item.image || PLACEHOLDER_IMAGE}
                           alt={item.name}
                           className="w-16 h-16 object-cover rounded-xl flex-shrink-0 border border-pink-100"
+                          onError={handleImageError}
                         />
                       ))}
                     </div>
@@ -149,9 +151,10 @@ export default function Orders() {
                             {order.items?.map((item, i) => (
                               <li key={i} className="flex gap-3">
                                 <img
-                                  src={item.image || '/placeholder.jpg'}
+                                  src={item.image || PLACEHOLDER_IMAGE}
                                   alt={item.name}
                                   className="w-14 h-14 object-cover rounded-lg flex-shrink-0 border border-pink-100"
+                                  onError={handleImageError}
                                 />
                                 <div className="flex-1 min-w-0">
                                   <p className="text-sm font-medium text-charcoal-800 line-clamp-1">{item.name}</p>

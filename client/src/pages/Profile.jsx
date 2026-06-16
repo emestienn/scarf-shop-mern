@@ -35,6 +35,7 @@ export default function Profile() {
   const [loading, setLoading]     = useState(true);
   const [form, setForm]           = useState({ name: '', phone: '', avatar: '' });
   const [avatarUploading, setAvatarUploading] = useState(false);
+  const [avatarBroken, setAvatarBroken] = useState(false);
   const [saving, setSaving]       = useState(false);
   const [notice, setNotice]       = useState(null);
 
@@ -64,6 +65,7 @@ export default function Profile() {
     try {
       const { data } = await uploadApi.uploadImage(file);
       setForm((f) => ({ ...f, avatar: data.url }));
+      setAvatarBroken(false);
     } catch (err) {
       notify(setNotice, 'error', err.response?.data?.message || t('profile.update_error'));
     } finally {
@@ -142,8 +144,13 @@ export default function Profile() {
                 {/* Avatar */}
                 <div className="flex items-center gap-4">
                   <div className="relative w-20 h-20 flex-shrink-0">
-                    {form.avatar ? (
-                      <img src={form.avatar} alt="" className="w-20 h-20 rounded-full object-cover border-2 border-pink-100" />
+                    {form.avatar && !avatarBroken ? (
+                      <img
+                        src={form.avatar}
+                        alt=""
+                        className="w-20 h-20 rounded-full object-cover border-2 border-pink-100"
+                        onError={() => setAvatarBroken(true)}
+                      />
                     ) : (
                       <div className="w-20 h-20 rounded-full bg-pink-100 flex items-center justify-center text-pink-500 text-2xl font-bold">
                         {initials}

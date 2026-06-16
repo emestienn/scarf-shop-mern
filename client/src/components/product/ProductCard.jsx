@@ -5,6 +5,7 @@ import { ShoppingBag, Eye, Heart } from 'lucide-react';
 import useCartStore from '../../store/cartStore.js';
 import useAuthStore from '../../store/authStore.js';
 import useLanguageStore from '../../store/languageStore.js';
+import { PLACEHOLDER_IMAGE, handleImageError } from '../../utils/image.js';
 
 const formatPrice = (n) => new Intl.NumberFormat('uz-UZ').format(n);
 
@@ -18,7 +19,7 @@ export default function ProductCard({ product, onQuickView }) {
   const { t, lang }   = useLanguageStore();
 
   const name = product.name?.[lang] || product.name?.ru || product.name;
-  const image = product.images?.[imgIdx] || product.images?.[0] || '/placeholder.jpg';
+  const image = product.images?.[imgIdx] || product.images?.[0] || PLACEHOLDER_IMAGE;
   const hoverImage = product.images?.[1] || image;
 
   const handleAddToCart = async (e) => {
@@ -55,6 +56,7 @@ export default function ProductCard({ product, onQuickView }) {
           alt={name}
           className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
           loading="lazy"
+          onError={handleImageError}
         />
 
         {/* Gradient overlay */}

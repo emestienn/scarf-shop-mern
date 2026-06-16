@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { useState } from 'react';
 import useCartStore from '../../store/cartStore.js';
 import useLanguageStore from '../../store/languageStore.js';
+import { PLACEHOLDER_IMAGE, handleImageError } from '../../utils/image.js';
 
 const formatPrice = (n) => new Intl.NumberFormat('uz-UZ').format(n);
 
@@ -47,9 +48,10 @@ export default function QuickViewModal({ product, onClose }) {
             {/* Image */}
             <div className="sm:w-1/2 aspect-square sm:aspect-auto relative">
               <img
-                src={selectedColor?.images?.[0] || product.images?.[0] || '/placeholder.jpg'}
+                src={selectedColor?.images?.[0] || product.images?.[0] || PLACEHOLDER_IMAGE}
                 alt={name}
                 className="w-full h-full object-cover rounded-t-3xl sm:rounded-l-3xl sm:rounded-tr-none"
+                onError={handleImageError}
               />
               <button
                 onClick={onClose}

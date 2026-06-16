@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import useAuthStore from '../store/authStore.js';
 import { adminApi, uploadApi } from '../api/index.js';
+import { handleImageError } from '../utils/image.js';
 
 // ── Bilingual strings ─────────────────────────────────────────────────────────
 const AT = {
@@ -52,6 +53,7 @@ const AT = {
       img_url: 'Вставить URL',
       img_url_ph: 'https://example.com/image.jpg',
       img_url_add: 'Добавить',
+      img_url_invalid: 'Ссылка должна быть полным адресом и начинаться с https://',
       colors_section: 'Варианты цвета',
       color_add: 'Добавить цвет',
       color_name_ph: 'Название цвета (напр. Белый)',
@@ -106,6 +108,7 @@ const AT = {
       img_url: 'URL qo\'shish',
       img_url_ph: 'https://example.com/rasm.jpg',
       img_url_add: 'Qo\'shish',
+      img_url_invalid: 'Havola to\'liq manzil bo\'lishi va https:// bilan boshlanishi kerak',
       colors_section: 'Rang variantlari',
       color_add: 'Rang qo\'shish',
       color_name_ph: 'Rang nomi (mas. Oq)',
@@ -532,6 +535,12 @@ const OrdersTab = () => {
   );
 };
 
+// ── Image URL validation ──────────────────────────────────────────────────────
+// External image links must be absolute and secure (https://) — a relative
+// path or http:// link saved here would break (mixed content, or resolves
+// against the wrong host) once deployed.
+const isValidHttpsUrl = (url) => /^https:\/\/.+/i.test(url.trim());
+
 // ── Products tab ──────────────────────────────────────────────────────────────
 const EMPTY_PRODUCT = {
   nameRu: '', nameUz: '', descRu: '', descUz: '', slug: '',
@@ -554,14 +563,20 @@ const ProductsTab = () => {
   const [saving, setSaving]     = useState(false);
   const [imgTab, setImgTab]     = useState('file');
   const [urlInput, setUrlInput] = useState('');
+  const [urlError, setUrlError] = useState('');
   const [sizeInput, setSizeInput] = useState('');
+  const [colorUrlErrors, setColorUrlErrors] = useState({});
 
   const addImageFiles = (files) => {
     setForm(f => ({ ...f, imageFiles: [...f.imageFiles, ...Array.from(files)] }));
   };
   const addImageUrl = () => {
     const url = urlInput.trim();
-    if (url) { setForm(f => ({ ...f, imageUrls: [...f.imageUrls, url] })); setUrlInput(''); }
+    if (!url) return;
+    if (!isValidHttpsUrl(url)) { setUrlError(at('products.img_url_invalid')); return; }
+    setForm(f => ({ ...f, imageUrls: [...f.imageUrls, url] }));
+    setUrlInput('');
+    setUrlError('');
   };
   const removeImage = (type, idx) => {
     if (type === 'file') setForm(f => ({ ...f, imageFiles: f.imageFiles.filter((_, i) => i !== idx) }));
@@ -569,11 +584,25 @@ const ProductsTab = () => {
   };
 
   const addColor = () => setForm(f => ({ ...f, colors: [...f.colors, { name: '', hex: '#C9A96E', imageUrl: '', imageFile: null, previewSrc: '' }] }));
-  const removeColor = (idx) => setForm(f => ({ ...f, colors: f.colors.filter((_, i) => i !== idx) }));
+  const removeColor = (idx) => {
+    setForm(f => ({ ...f, colors: f.colors.filter((_, i) => i !== idx) }));
+    setColorUrlErrors(e => { const next = { ...e }; delete next[idx]; return next; });
+  };
   const updateColor = (idx, key, value) => setForm(f => ({
     ...f,
     colors: f.colors.map((c, i) => i === idx ? { ...c, [key]: value } : c),
   }));
+  const updateColorImageUrl = (idx, value) => {
+    if (!value || isValidHttpsUrl(value)) {
+      setColorUrlErrors(e => ({ ...e, [idx]: '' }));
+      updateColor(idx, 'imageUrl', value);
+      updateColor(idx, 'previewSrc', value);
+    } else {
+      setColorUrlErrors(e => ({ ...e, [idx]: at('products.img_url_invalid') }));
+      updateColor(idx, 'imageUrl', value);
+      updateColor(idx, 'previewSrc', '');
+    }
+  };
   const handleColorFile = (idx, file) => {
     if (!file) return;
     const previewSrc = URL.createObjectURL(file);
@@ -624,6 +653,15 @@ const ProductsTab = () => {
 
   const handleSave = async (e) => {
     e.preventDefault();
+
+    const invalidColorIdx = form.colors.findIndex(c =>
+      !c.imageFile && c.imageUrl && !isValidHttpsUrl(c.imageUrl) && !c.imageUrl.startsWith('/uploads/')
+    );
+    if (invalidColorIdx !== -1) {
+      setColorUrlErrors(e => ({ ...e, [invalidColorIdx]: at('products.img_url_invalid') }));
+      return;
+    }
+
     setSaving(true);
     try {
       const uploadFile = async (file) => {
@@ -707,7 +745,7 @@ const ProductsTab = () => {
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-3">
                         {p.images?.[0] ? (
-                          <img src={p.images[0]} alt="" className="w-10 h-10 object-cover rounded-lg flex-shrink-0" />
+                          <img src={p.images[0]} alt="" className="w-10 h-10 object-cover rounded-lg flex-shrink-0" onError={handleImageError} />
                         ) : (
                           <div className="w-10 h-10 bg-pink-50 rounded-lg flex items-center justify-center flex-shrink-0">
                             <Package size={18} className="text-pink-300" />
@@ -844,13 +882,20 @@ const ProductsTab = () => {
                       <span className="text-xs text-charcoal-400">{at('products.img_upload')}</span>
                     </label>
                   ) : (
-                    <div className="flex gap-2">
-                      <input value={urlInput} onChange={e => setUrlInput(e.target.value)}
-                        onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addImageUrl())}
-                        placeholder={at('products.img_url_ph')} className="input-field text-sm flex-1" />
-                      <button type="button" onClick={addImageUrl} className="btn-outline text-sm px-3 whitespace-nowrap">
-                        + {at('products.img_url_add')}
-                      </button>
+                    <div>
+                      <div className="flex gap-2">
+                        <input value={urlInput} onChange={e => { setUrlInput(e.target.value); setUrlError(''); }}
+                          onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addImageUrl())}
+                          placeholder={at('products.img_url_ph')} className="input-field text-sm flex-1" />
+                        <button type="button" onClick={addImageUrl} className="btn-outline text-sm px-3 whitespace-nowrap">
+                          + {at('products.img_url_add')}
+                        </button>
+                      </div>
+                      {urlError && (
+                        <p className="text-xs text-red-500 mt-1.5 flex items-center gap-1">
+                          <AlertCircle size={12} /> {urlError}
+                        </p>
+                      )}
                     </div>
                   )}
                   {(form.imageFiles.length > 0 || form.imageUrls.length > 0) && (
@@ -904,9 +949,14 @@ const ProductsTab = () => {
                             </span>
                           </label>
                           <input placeholder={at('products.color_img_ph')} value={color.imageUrl}
-                            onChange={e => { updateColor(i, 'imageUrl', e.target.value); updateColor(i, 'previewSrc', e.target.value); }}
+                            onChange={e => updateColorImageUrl(i, e.target.value)}
                             className="input-field text-xs flex-1 min-w-0" />
                         </div>
+                        {colorUrlErrors[i] && (
+                          <p className="text-xs text-red-500 flex items-center gap-1">
+                            <AlertCircle size={11} /> {colorUrlErrors[i]}
+                          </p>
+                        )}
                         {color.previewSrc && (
                           <img src={color.previewSrc} alt="" className="w-20 h-14 object-cover rounded-lg border border-charcoal-100"
                             onError={e => { e.target.style.display='none'; }} />

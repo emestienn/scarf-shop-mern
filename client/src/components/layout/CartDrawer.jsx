@@ -3,6 +3,7 @@ import { X, ShoppingBag, Trash2, Plus, Minus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import useCartStore from '../../store/cartStore.js';
 import useLanguageStore from '../../store/languageStore.js';
+import { PLACEHOLDER_IMAGE, handleImageError } from '../../utils/image.js';
 
 const formatPrice = (n) => new Intl.NumberFormat('uz-UZ').format(n);
 
@@ -79,9 +80,10 @@ export default function CartDrawer() {
                       >
                         <Link to={`/products/${item.slug}`} onClick={closeCart}>
                           <img
-                            src={item.image || '/placeholder.jpg'}
+                            src={item.image || PLACEHOLDER_IMAGE}
                             alt={item.name}
                             className="w-20 h-20 object-cover rounded-xl"
+                            onError={handleImageError}
                           />
                         </Link>
                         <div className="flex-1 min-w-0">
