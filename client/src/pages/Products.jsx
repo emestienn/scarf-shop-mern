@@ -105,8 +105,8 @@ export default function Products() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex gap-8">
-          {/* Filters — mobile toggle button renders here on sm, full sidebar on lg */}
-          <div className="lg:block">
+          {/* Desktop sidebar only — mobile gets its own toggle button below, in the grid column */}
+          <div className="hidden lg:block">
             <ProductFilters
               filters={filters}
               onChange={(f) => updateFilters({ ...f, page: 1 })}

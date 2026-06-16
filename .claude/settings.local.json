@@ -85,7 +85,9 @@
       "/tmp/pw-badge",
       "/private/tmp/pw-badge",
       "/tmp/pw-ig",
-      "/private/tmp/pw-ig"
+      "/private/tmp/pw-ig",
+      "/tmp/pw-resp",
+      "/private/tmp/pw-resp"
     ]
   }
 }
