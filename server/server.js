@@ -34,6 +34,10 @@ app.use(helmet({
       // (Unsplash, Pinterest, etc.) once the production build is served by
       // Express instead of the Vite dev server. Allow any https image host.
       'img-src': ["'self'", 'data:', 'https:'],
+      // frame-src isn't in helmet's defaults, so it falls back to
+      // default-src 'self' and silently blocks the Instagram reel embeds
+      // (iframes pointing at instagram.com) once served in production.
+      'frame-src': ["'self'", 'https://www.instagram.com'],
     },
   },
 }));

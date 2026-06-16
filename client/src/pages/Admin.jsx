@@ -7,7 +7,7 @@ import {
   RefreshCw, Plus, Edit2, Trash2, Search, Eye,
   Truck, Store, MessageSquare, RotateCcw, Settings2,
   BadgeCheck, Star, Award, Sparkles, Link2, UserX,
-  CreditCard, AlertCircle, Upload, X, Image, Palette, Ruler, Menu,
+  CreditCard, AlertCircle, Upload, X, Image, Palette, Ruler, Menu, Gem,
 } from 'lucide-react';
 import useAuthStore from '../store/authStore.js';
 import { adminApi, uploadApi } from '../api/index.js';
@@ -44,10 +44,19 @@ const AT = {
       name_ru: 'Название (RU) *', name_uz: 'Название (UZ)',
       slug: 'Slug — авто если пусто', desc_ru: 'Описание (RU)', desc_uz: 'Описание (UZ)',
       category: 'Категория', material: 'Материал', pattern: 'Узор',
-      price: 'Цена (UZS) *', stock: 'Остаток (шт.) *',
+      price: 'Цена (UZS) *', compare_price: 'Старая цена (для скидки)', stock: 'Остаток (шт.) *',
       cancel: 'Отмена', save: 'Сохранить', saving: 'Сохранение...',
       delete_confirm: 'Удалить товар?', error_save: 'Ошибка сохранения',
       flags: { featured: 'Рекомендуемый', bestseller: 'Хит продаж', new: 'Новинка' },
+      badges_section: 'Бейджи товара',
+      badge_options: {
+        premium: 'Премиум качество', breathable: 'Дышащий материал', limited: 'Лимитированная серия',
+        new: 'Новинка', sale: 'Скидка', exclusive: 'Эксклюзив',
+      },
+      wholesale_section: 'Оптовые цены',
+      wholesale_add: 'Добавить уровень',
+      wholesale_min: 'От (шт.) *', wholesale_max: 'До (шт.)', wholesale_price: 'Цена за шт. (UZS) *',
+      wholesale_label_ph: 'напр. 10-29 шт.',
       images_section: 'Изображения товара',
       img_upload: 'Загрузить файл',
       img_url: 'Вставить URL',
@@ -99,10 +108,19 @@ const AT = {
       name_ru: 'Nomi (RU) *', name_uz: 'Nomi (UZ)',
       slug: 'Slug — bo\'sh bo\'lsa avtomatik', desc_ru: 'Tavsif (RU)', desc_uz: 'Tavsif (UZ)',
       category: 'Kategoriya', material: 'Material', pattern: 'Naqsh',
-      price: 'Narx (UZS) *', stock: 'Qoldiq (ta) *',
+      price: 'Narx (UZS) *', compare_price: 'Eski narx (chegirma uchun)', stock: 'Qoldiq (ta) *',
       cancel: 'Bekor qilish', save: 'Saqlash', saving: 'Saqlanmoqda...',
       delete_confirm: 'Mahsulotni o\'chirish?', error_save: 'Saqlashda xatolik',
       flags: { featured: 'Tavsiya etilgan', bestseller: 'Eng ko\'p sotilgan', new: 'Yangi' },
+      badges_section: 'Mahsulot belgilari',
+      badge_options: {
+        premium: 'Premium sifat', breathable: 'Nafas oladigan material', limited: 'Cheklangan seriya',
+        new: 'Yangilik', sale: 'Chegirma', exclusive: 'Ekskluziv',
+      },
+      wholesale_section: 'Ulgurji narxlar',
+      wholesale_add: 'Daraja qo\'shish',
+      wholesale_min: 'Dan (ta) *', wholesale_max: 'Gacha (ta)', wholesale_price: 'Dona narxi (UZS) *',
+      wholesale_label_ph: 'mas. 10-29 ta',
       images_section: 'Mahsulot rasmlari',
       img_upload: 'Fayl yuklash',
       img_url: 'URL qo\'shish',
@@ -542,15 +560,19 @@ const OrdersTab = () => {
 const isValidHttpsUrl = (url) => /^https:\/\/.+/i.test(url.trim());
 
 // ── Products tab ──────────────────────────────────────────────────────────────
+const BADGE_OPTIONS = ['premium', 'breathable', 'limited', 'new', 'sale', 'exclusive'];
+
 const EMPTY_PRODUCT = {
   nameRu: '', nameUz: '', descRu: '', descUz: '', slug: '',
   category: 'platok', material: 'silk', pattern: 'solid',
-  retailPrice: '', stock: '',
+  retailPrice: '', compareAtPrice: '', stock: '',
   isFeatured: false, isBestSeller: false, isNewArrival: false,
+  badges: [],
   imageUrls: [],
   imageFiles: [],
   colors: [],
   sizes: [],
+  wholesaleTiers: [],
 };
 
 const ProductsTab = () => {
@@ -618,6 +640,21 @@ const ProductsTab = () => {
   };
   const removeSize = (idx) => setForm(f => ({ ...f, sizes: f.sizes.filter((_, i) => i !== idx) }));
 
+  const toggleBadge = (badge) => setForm(f => ({
+    ...f,
+    badges: f.badges.includes(badge) ? f.badges.filter(b => b !== badge) : [...f.badges, badge],
+  }));
+
+  const addWholesaleTier = () => setForm(f => ({
+    ...f,
+    wholesaleTiers: [...f.wholesaleTiers, { minQuantity: '', maxQuantity: '', pricePerUnit: '', label: '' }],
+  }));
+  const removeWholesaleTier = (idx) => setForm(f => ({ ...f, wholesaleTiers: f.wholesaleTiers.filter((_, i) => i !== idx) }));
+  const updateWholesaleTier = (idx, key, value) => setForm(f => ({
+    ...f,
+    wholesaleTiers: f.wholesaleTiers.map((t, i) => i === idx ? { ...t, [key]: value } : t),
+  }));
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -634,8 +671,10 @@ const ProductsTab = () => {
       nameRu: p.name?.ru || '', nameUz: p.name?.uz || '',
       descRu: p.description?.ru || '', descUz: p.description?.uz || '',
       slug: p.slug || '', category: p.category, material: p.material,
-      pattern: p.pattern || 'solid', retailPrice: p.retailPrice, stock: p.stock,
+      pattern: p.pattern || 'solid', retailPrice: p.retailPrice,
+      compareAtPrice: p.compareAtPrice || '', stock: p.stock,
       isFeatured: p.isFeatured, isBestSeller: p.isBestSeller, isNewArrival: p.isNewArrival,
+      badges: p.badges || [],
       imageUrls: p.images || [],
       imageFiles: [],
       colors: (p.colors || []).map(c => ({
@@ -644,6 +683,10 @@ const ProductsTab = () => {
         previewSrc: c.images?.[0] || '',
       })),
       sizes: (p.sizes || []).map(s => ({ label: s.label || s, dimensions: s.dimensions || '' })),
+      wholesaleTiers: (p.wholesaleTiers || []).map(t => ({
+        minQuantity: t.minQuantity ?? '', maxQuantity: t.maxQuantity ?? '',
+        pricePerUnit: t.pricePerUnit ?? '', label: t.label || '',
+      })),
       _id: p._id,
     });
     setModal('edit');
@@ -682,15 +725,28 @@ const ProductsTab = () => {
 
       const slugValue = form.slug ||
         form.nameRu.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/gi, '').replace(/-+/g, '-');
+      const resolvedTiers = form.wholesaleTiers
+        .filter(t => t.minQuantity && t.pricePerUnit)
+        .map(t => ({
+          minQuantity: Number(t.minQuantity),
+          ...(t.maxQuantity ? { maxQuantity: Number(t.maxQuantity) } : {}),
+          pricePerUnit: Number(t.pricePerUnit),
+          label: t.label,
+        }));
+
       const payload = {
         name:        { ru: form.nameRu, uz: form.nameUz },
         description: { ru: form.descRu, uz: form.descUz },
         slug: slugValue, category: form.category, material: form.material, pattern: form.pattern,
-        retailPrice: Number(form.retailPrice), stock: Number(form.stock),
+        retailPrice: Number(form.retailPrice),
+        compareAtPrice: form.compareAtPrice ? Number(form.compareAtPrice) : null,
+        stock: Number(form.stock),
         isFeatured: form.isFeatured, isBestSeller: form.isBestSeller, isNewArrival: form.isNewArrival,
+        badges: form.badges,
         images: allImages,
         colors: resolvedColors,
         sizes: form.sizes,
+        wholesaleTiers: resolvedTiers,
         isAvailable: true,
       };
       if (modal === 'edit' && form._id) await adminApi.updateProduct(form._id, payload);
@@ -852,15 +908,72 @@ const ProductsTab = () => {
                     </select>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-xs font-medium text-charcoal-600 mb-1">{at('products.price')}</label>
                     <input type="number" min="0" value={form.retailPrice} onChange={e => F('retailPrice', e.target.value)} className="input-field text-sm" required />
                   </div>
                   <div>
+                    <label className="block text-xs font-medium text-charcoal-600 mb-1">{at('products.compare_price')}</label>
+                    <input type="number" min="0" value={form.compareAtPrice} onChange={e => F('compareAtPrice', e.target.value)} className="input-field text-sm" />
+                  </div>
+                  <div>
                     <label className="block text-xs font-medium text-charcoal-600 mb-1">{at('products.stock')}</label>
                     <input type="number" min="0" value={form.stock} onChange={e => F('stock', e.target.value)} className="input-field text-sm" required />
                   </div>
+                </div>
+
+                {/* Badges */}
+                <div className="border border-charcoal-100 rounded-2xl p-4 space-y-3">
+                  <h4 className="text-sm font-semibold text-charcoal-700 flex items-center gap-2">
+                    <Sparkles size={14} className="text-pink-400" /> {at('products.badges_section')}
+                  </h4>
+                  <div className="flex flex-wrap gap-2">
+                    {BADGE_OPTIONS.map(badge => (
+                      <button
+                        key={badge}
+                        type="button"
+                        onClick={() => toggleBadge(badge)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                          form.badges.includes(badge)
+                            ? 'bg-pink-400 text-white border-pink-400'
+                            : 'bg-white text-charcoal-600 border-charcoal-200 hover:border-pink-300'
+                        }`}
+                      >
+                        {at(`products.badge_options.${badge}`)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Wholesale tiers */}
+                <div className="border border-charcoal-100 rounded-2xl p-4 space-y-3">
+                  <h4 className="text-sm font-semibold text-charcoal-700 flex items-center gap-2">
+                    <Gem size={14} className="text-pink-400" /> {at('products.wholesale_section')}
+                  </h4>
+                  {form.wholesaleTiers.map((tier, i) => (
+                    <div key={i} className="flex gap-2 items-start p-3 bg-charcoal-50 rounded-xl flex-wrap">
+                      <input type="number" min="0" placeholder={at('products.wholesale_min')} value={tier.minQuantity}
+                        onChange={e => updateWholesaleTier(i, 'minQuantity', e.target.value)}
+                        className="input-field text-xs flex-1 min-w-[90px]" />
+                      <input type="number" min="0" placeholder={at('products.wholesale_max')} value={tier.maxQuantity}
+                        onChange={e => updateWholesaleTier(i, 'maxQuantity', e.target.value)}
+                        className="input-field text-xs flex-1 min-w-[90px]" />
+                      <input type="number" min="0" placeholder={at('products.wholesale_price')} value={tier.pricePerUnit}
+                        onChange={e => updateWholesaleTier(i, 'pricePerUnit', e.target.value)}
+                        className="input-field text-xs flex-1 min-w-[110px]" />
+                      <input placeholder={at('products.wholesale_label_ph')} value={tier.label}
+                        onChange={e => updateWholesaleTier(i, 'label', e.target.value)}
+                        className="input-field text-xs flex-1 min-w-[110px]" />
+                      <button type="button" onClick={() => removeWholesaleTier(i)} className="text-charcoal-300 hover:text-red-400 transition-colors flex-shrink-0 p-2">
+                        <X size={16} />
+                      </button>
+                    </div>
+                  ))}
+                  <button type="button" onClick={addWholesaleTier}
+                    className="flex items-center gap-1.5 px-3 py-2 text-sm border border-dashed border-pink-200 text-pink-400 rounded-xl hover:border-pink-400 hover:bg-pink-50/30 transition-all w-full justify-center">
+                    <Plus size={14} /> {at('products.wholesale_add')}
+                  </button>
                 </div>
                 {/* Images */}
                 <div className="border border-charcoal-100 rounded-2xl p-4 space-y-3">

@@ -60,7 +60,15 @@
       "Bash(curl -s -X POST http://localhost:8000/api/products -H 'Authorization: Bearer __TRACKED_VAR__' -H 'Content-Type: application/json' -d '{ *)",
       "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(d.get\\('success'\\), d.get\\('product',{}\\).get\\('slug'\\)\\)\")",
       "Bash(rm -rf /tmp/pw-check3 /tmp/shots3 /tmp/qa_img_token.txt /tmp/reg.json)",
-      "Bash(curl -s -X POST http://localhost:8000/api/auth/register -H \"Content-Type: application/json\" -d '{\"name\":\"QA CSP\",\"email\":\"qa-csp-test@example.com\",\"password\":\"TempPass123!\"}')"
+      "Bash(curl -s -X POST http://localhost:8000/api/auth/register -H \"Content-Type: application/json\" -d '{\"name\":\"QA CSP\",\"email\":\"qa-csp-test@example.com\",\"password\":\"TempPass123!\"}')",
+      "Bash(xargs -I{} ps -p {} -o command=)",
+      "Bash(curl -s -X POST http://localhost:8000/api/auth/register -H \"Content-Type: application/json\" -d '{\"name\":\"QA Form Admin\",\"email\":\"qa-form-admin@example.com\",\"password\":\"TempPass123!\"}')",
+      "Bash(curl -s -X POST http://localhost:8000/api/auth/login -H \"Content-Type: application/json\" -d '{\"email\":\"qa-form-admin@example.com\",\"password\":\"TempPass123!\"}')",
+      "Bash(rm -rf /tmp/pw-form /tmp/shots-form /tmp/reg.json)",
+      "Bash(curl -s -X POST http://localhost:8000/api/auth/register -H \"Content-Type: application/json\" -d '{\"name\":\"QA Badge\",\"email\":\"qa-badge-test@example.com\",\"password\":\"TempPass123!\"}')",
+      "Bash(curl -s -X POST http://localhost:8000/api/auth/login -H \"Content-Type: application/json\" -d '{\"email\":\"qa-badge-test@example.com\",\"password\":\"TempPass123!\"}')",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(d.get\\('success'\\)\\)\")",
+      "Bash(rm -rf /tmp/pw-badge /tmp/shots-badge)"
     ],
     "additionalDirectories": [
       "/Users/tanzilanosirova/Desktop/fullstackProject/server/public",
@@ -71,7 +79,13 @@
       "/tmp/pw-check3",
       "/private/tmp/pw-check3",
       "/tmp/pw-csp",
-      "/private/tmp/pw-csp"
+      "/private/tmp/pw-csp",
+      "/tmp/pw-form",
+      "/private/tmp/pw-form",
+      "/tmp/pw-badge",
+      "/private/tmp/pw-badge",
+      "/tmp/pw-ig",
+      "/private/tmp/pw-ig"
     ]
   }
 }

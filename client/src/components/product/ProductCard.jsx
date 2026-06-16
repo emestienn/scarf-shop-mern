@@ -63,17 +63,19 @@ export default function ProductCard({ product, onQuickView }) {
         <div className="absolute inset-0 bg-gradient-to-t from-charcoal-900/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
         {/* Top badges */}
-        <div className="absolute top-3 left-3 flex flex-col gap-1.5">
-          {product.isNewArrival && (
-            <span className="badge-luxury bg-pink-400 text-white text-[10px] font-bold px-2 py-0.5">NEW</span>
-          )}
-          {product.isOnSale && (
-            <span className="badge-luxury bg-red-400 text-white text-[10px] font-bold px-2 py-0.5">
-              -{product.discountPercent}%
-            </span>
-          )}
+        <div className="absolute top-3 left-3 flex flex-col items-start gap-1.5 max-w-[calc(100%-1.5rem)]">
+          <div className="flex gap-1">
+            {product.isNewArrival && (
+              <span className="badge-luxury bg-pink-400 text-white text-[10px] font-bold px-1.5 py-0.5">NEW</span>
+            )}
+            {product.isOnSale && (
+              <span className="badge-luxury bg-red-400 text-white text-[10px] font-bold px-1.5 py-0.5">
+                -{product.discountPercent}%
+              </span>
+            )}
+          </div>
           {product.badges?.slice(0, 1).map((badge) => (
-            <span key={badge} className={`badge-luxury border text-[10px] ${badgeColors[badge] || 'bg-white text-charcoal-600 border-charcoal-200'}`}>
+            <span key={badge} className={`badge-luxury border text-[10px] self-start ${badgeColors[badge] || 'bg-white text-charcoal-600 border-charcoal-200'}`}>
               ✦ {t(`product.badges.${badge}`)}
             </span>
           ))}
