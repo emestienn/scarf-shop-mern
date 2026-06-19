@@ -82,6 +82,13 @@ const orderSchema = new mongoose.Schema(
     ],
     adminNote: { type: String },
     telegramNotified: { type: Boolean, default: false },
+    customerTelegramChatId: { type: String },
+    location: {
+      address:   { type: String },
+      latitude:  { type: Number },
+      longitude: { type: Number },
+      mapLink:   { type: String },
+    },
     language: { type: String, enum: ['ru', 'uz'], default: 'ru' },
   },
   { timestamps: true }

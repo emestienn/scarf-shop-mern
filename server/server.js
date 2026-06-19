@@ -8,7 +8,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import connectDB from './config/db.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
-import { initBot } from './utils/telegramBot.js';
+import { initBot, getBotUsername } from './utils/telegramBot.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -78,6 +78,11 @@ app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads')));
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', brand: 'Luxury Platok', timestamp: new Date().toISOString() });
+});
+
+// Public config — exposes non-sensitive values the frontend needs at runtime
+app.get('/api/config', (req, res) => {
+  res.json({ telegramBotUsername: getBotUsername() });
 });
 
 

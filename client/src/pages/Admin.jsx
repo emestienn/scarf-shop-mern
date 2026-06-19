@@ -7,7 +7,7 @@ import {
   RefreshCw, Plus, Edit2, Trash2, Search, Eye,
   Truck, Store, MessageSquare, RotateCcw, Settings2,
   BadgeCheck, Star, Award, Sparkles, Link2, UserX,
-  CreditCard, AlertCircle, Upload, X, Image, Palette, Ruler, Menu, Gem,
+  CreditCard, AlertCircle, Upload, X, Image, Palette, Ruler, Menu, Gem, MapPin,
 } from 'lucide-react';
 import useAuthStore from '../store/authStore.js';
 import { adminApi, uploadApi } from '../api/index.js';
@@ -28,7 +28,7 @@ const AT = {
       loading: 'Загрузка заказов...', empty: 'Заказов нет',
       cols: ['', 'Заказ', 'Клиент', 'Товары', 'Сумма', 'Доставка', 'Статус'],
       delivery: 'Доставка', pickup: 'Самовывоз',
-      expand: { address: 'Адрес', payment: 'Оплата', composition: 'Состав', notes: 'Комментарий' },
+      expand: { address: 'Адрес', payment: 'Оплата', composition: 'Состав', notes: 'Комментарий', view_map: 'Xaritada ko\'rish', location: 'Местоположение' },
       paid: 'Оплачен', not_paid: 'Не оплачен',
       units: 'шт.',
     },
@@ -92,7 +92,7 @@ const AT = {
       loading: 'Buyurtmalar yuklanmoqda...', empty: 'Buyurtmalar yo\'q',
       cols: ['', 'Buyurtma', 'Mijoz', 'Mahsulotlar', 'Summa', 'Yetkazib berish', 'Holat'],
       delivery: 'Yetkazib berish', pickup: 'O\'zi olib ketish',
-      expand: { address: 'Manzil', payment: 'To\'lov', composition: 'Tarkib', notes: 'Izoh' },
+      expand: { address: 'Manzil', payment: 'To\'lov', composition: 'Tarkib', notes: 'Izoh', view_map: 'Xaritada ko\'rish', location: 'Joylashuv' },
       paid: 'To\'langan', not_paid: 'To\'lanmagan',
       units: 'ta',
     },
@@ -472,6 +472,17 @@ const OrdersTab = () => {
                             : <><Truck size={12} className="text-blue-400" /> {at('orders.delivery')}</>
                           }
                         </span>
+                        {order.location?.mapLink && (
+                          <a
+                            href={order.location.mapLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="flex items-center gap-0.5 text-blue-500 hover:text-blue-600 hover:underline mt-0.5"
+                          >
+                            <MapPin size={11} /> {at('orders.expand.view_map')}
+                          </a>
+                        )}
                       </td>
                       <td className="py-3 px-3" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center gap-2">
@@ -507,6 +518,21 @@ const OrdersTab = () => {
                                 ) : (
                                   <p className="text-charcoal-700">{order.shippingAddress?.district}, {order.shippingAddress?.street}{order.shippingAddress?.apartment ? `, кв.${order.shippingAddress.apartment}` : ''}</p>
                                 )}
+                                {/* Location: GPS link or manual address text */}
+                                {order.location?.mapLink ? (
+                                  <a
+                                    href={order.location.mapLink}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 text-blue-500 hover:text-blue-600 hover:underline text-xs mt-1 font-medium"
+                                  >
+                                    <MapPin size={12} /> {at('orders.expand.view_map')}
+                                  </a>
+                                ) : order.location?.address ? (
+                                  <p className="text-charcoal-500 flex items-center gap-1 text-xs mt-1">
+                                    <MapPin size={12} className="text-charcoal-400 flex-shrink-0" /> {order.location.address}
+                                  </p>
+                                ) : null}
                               </div>
                               <div>
                                 <p className="text-xs font-medium text-charcoal-500 uppercase tracking-wide mb-1">{at('orders.expand.payment')}</p>

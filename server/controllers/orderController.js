@@ -13,6 +13,7 @@ export const createOrder = asyncHandler(async (req, res) => {
     guestEmail,
     guestPhone,
     language,
+    location,
   } = req.body;
 
   if (!items || items.length === 0) {
@@ -67,6 +68,7 @@ export const createOrder = asyncHandler(async (req, res) => {
     shippingCost,
     totalAmount,
     language: language || 'ru',
+    location: location || undefined,
     statusHistory: [{ status: 'pending', note: 'Order placed' }],
   });
 
@@ -129,9 +131,11 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
   await order.save();
   await sendStatusUpdate(order, status);
 
-  // Notify the customer on their Telegram if linked
+  // Notify the customer on their Telegram — works for linked accounts (user.telegramId)
+  // AND for guest orders where the customer connected via the checkout deep-link
+  // (order.customerTelegramChatId). If neither is present, silently skipped.
   const fullOrder = await Order.findById(order._id).populate('user', 'telegramId preferredLanguage name');
-  if (fullOrder.user?.telegramId) {
+  if (fullOrder.user?.telegramId || fullOrder.customerTelegramChatId) {
     await sendUserStatusUpdate(fullOrder, status, fullOrder.user);
   }
 

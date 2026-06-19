@@ -2,11 +2,11 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   User, Mail, Phone, Camera, Lock, Eye, EyeOff,
-  CheckCircle, AlertCircle, Loader2, ShieldCheck, BadgeCheck,
+  CheckCircle, AlertCircle, Loader2, ShieldCheck, BadgeCheck, Send,
 } from 'lucide-react';
 import useAuthStore from '../store/authStore.js';
 import useLanguageStore from '../store/languageStore.js';
-import { usersApi, uploadApi } from '../api/index.js';
+import { usersApi, uploadApi, configApi } from '../api/index.js';
 
 const Notification = ({ notice }) => (
   <AnimatePresence>
@@ -44,13 +44,21 @@ export default function Profile() {
   const [changingPw, setChangingPw] = useState(false);
   const [pwNotice, setPwNotice]   = useState(null);
 
+  const [telegramLinked, setTelegramLinked] = useState(false);
+  const [botUsername, setBotUsername]       = useState('');
+
   useEffect(() => {
     usersApi.getProfile()
       .then(({ data }) => {
         setForm({ name: data.user.name || '', phone: data.user.phone || '', avatar: data.user.avatar || '' });
+        setTelegramLinked(!!data.user.telegramId);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
+
+    configApi.get()
+      .then(({ data }) => setBotUsername(data.telegramBotUsername || ''))
+      .catch(() => {});
   }, []);
 
   const notify = (setter, type, message) => {
@@ -201,6 +209,47 @@ export default function Profile() {
                   {saving ? t('profile.saving') : t('profile.save_changes')}
                 </button>
               </form>
+            </motion.div>
+
+            {/* Telegram card */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.08 }}
+              className="bg-white rounded-3xl shadow-luxury p-6 sm:p-8"
+            >
+              <h2 className="font-serif text-xl text-charcoal-800 mb-1 flex items-center gap-2">
+                <Send size={18} className="text-[#229ED9]" /> {t('profile.telegram')}
+              </h2>
+              <p className="text-sm text-charcoal-400 mb-5">{t('profile.telegram_desc')}</p>
+
+              {telegramLinked ? (
+                <div className="flex items-center gap-3 p-4 rounded-2xl bg-green-50 border border-green-200">
+                  <CheckCircle size={20} className="text-green-500 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium text-green-700">{t('profile.telegram_connected')}</p>
+                    <p className="text-xs text-green-600 mt-0.5">{t('profile.telegram_connected_desc')}</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3 p-4 rounded-2xl bg-charcoal-50 border border-charcoal-100">
+                    <AlertCircle size={18} className="text-charcoal-400 flex-shrink-0 mt-0.5" />
+                    <p className="text-sm text-charcoal-500">{t('profile.telegram_not_connected_desc')}</p>
+                  </div>
+                  {botUsername && (
+                    <a
+                      href={`https://t.me/${botUsername}?start=user_${user?._id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full flex items-center justify-center gap-2 py-3 px-6 rounded-2xl bg-[#229ED9] hover:bg-[#1a8fc7] text-white font-medium transition-colors"
+                    >
+                      <Send size={16} />
+                      {t('profile.telegram_connect')}
+                    </a>
+                  )}
+                </div>
+              )}
             </motion.div>
 
             {/* Security card */}

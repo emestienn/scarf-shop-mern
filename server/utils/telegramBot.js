@@ -1,6 +1,9 @@
 import TelegramBot from 'node-telegram-bot-api';
 
 let bot = null;
+let botUsername = '';
+
+export const getBotUsername = () => botUsername;
 
 const formatPrice = (n) => new Intl.NumberFormat('uz-UZ').format(Math.round(n)) + ' UZS';
 
@@ -62,12 +65,19 @@ const formatOrderCard = (order) => {
     ? `🏪 Самовывоз: ${order.pickupLocation || '—'}`
     : `🚚 ${order.shippingAddress?.district || ''}, ${order.shippingAddress?.street || ''}`;
 
+  // Location line: shown only when no coordinates (coordinates come as a separate pin)
+  const locationLine = (() => {
+    if (order.location?.latitude && order.location?.longitude) return ''; // pin sent separately
+    if (order.location?.address) return `\n📍 Manzil: ${order.location.address}`;
+    return '';
+  })();
+
   return `
 ${statusEmojis[order.status] || '📋'} *Заказ ${order.orderNumber}*
 ━━━━━━━━━━━━━━━━━━━
 👤 ${order.shippingAddress?.fullName || order.guestEmail || 'Гость'}
 📱 ${order.shippingAddress?.phone || order.guestPhone || '—'}
-${delivery}
+${delivery}${locationLine}
 
 🛒 *Товары:*
 ${items}
@@ -109,6 +119,11 @@ export const sendOrderNotification = async (order) => {
   if (!instance || !chatId) return false;
 
   try {
+    // Send interactive map pin first when customer shared GPS coordinates
+    if (order.location?.latitude && order.location?.longitude) {
+      await instance.sendLocation(chatId, order.location.latitude, order.location.longitude);
+    }
+    // Then send the full order card
     await instance.sendMessage(chatId, formatOrderCard(order), {
       parse_mode:   'Markdown',
       reply_markup: orderInlineKeyboard(order._id.toString(), order.status),
@@ -120,18 +135,22 @@ export const sendOrderNotification = async (order) => {
   }
 };
 
-// ── Send status update to user via their Telegram ────────────────────────────
+// ── Send status update to customer via their Telegram ────────────────────────
+// Accepts either a linked user account (user.telegramId) or a guest chat ID
+// stored directly on the order (order.customerTelegramChatId). If neither is
+// present the call is silently skipped so the status update still succeeds.
 
 export const sendUserStatusUpdate = async (order, newStatus, user) => {
   const instance = getBot();
-  if (!instance || !user?.telegramId) return false;
+  const chatId   = user?.telegramId || order?.customerTelegramChatId;
+  if (!instance || !chatId) return false;
 
-  const lang    = user.preferredLanguage || order.language || 'ru';
-  const msgFn   = userMessages[lang]?.[newStatus] || userMessages.ru[newStatus];
+  const lang  = user?.preferredLanguage || order?.language || 'ru';
+  const msgFn = userMessages[lang]?.[newStatus] || userMessages.ru[newStatus];
   if (!msgFn) return false;
 
   try {
-    await instance.sendMessage(user.telegramId, msgFn(order.orderNumber), {
+    await instance.sendMessage(chatId, msgFn(order.orderNumber), {
       parse_mode: 'Markdown',
     });
     return true;
@@ -174,8 +193,18 @@ export const initBot = async () => {
 
   bot = new TelegramBot(token, { polling: true });
 
-  // Lazy-import Order to avoid circular deps at module load time
+  // Cache the bot's own username so it can be exposed via /api/config
+  try {
+    const me = await bot.getMe();
+    botUsername = me.username || '';
+    console.log(`🤖 Bot username: @${botUsername}`);
+  } catch (e) {
+    console.warn('Could not fetch bot username:', e.message);
+  }
+
+  // Lazy-import models to avoid circular deps at module load time
   const { default: Order } = await import('../models/Order.js');
+  const { default: User  } = await import('../models/User.js');
 
   const isAdmin = (id) => String(id) === String(chatId);
 
@@ -193,19 +222,84 @@ export const initBot = async () => {
     }
   };
 
-  // ── /start ──
-  bot.onText(/\/start/, (msg) => {
-    if (!isAdmin(msg.chat.id)) {
+  // ── /start — handles three cases:
+  //   /start LP-XXXX-XXXX  → customer linking an order for notifications
+  //   /start user_<id>     → customer linking their account from Profile page
+  //   /start               → admin menu or generic welcome
+  bot.onText(/\/start(?:\s+(.+))?/, async (msg, match) => {
+    const param    = match?.[1]?.trim();
+    const userChatId = String(msg.chat.id);
+
+    // ── Case 1: order deep-link (checkout success button)
+    if (param?.startsWith('LP-')) {
+      try {
+        const order = await Order.findOne({ orderNumber: param }).populate('user');
+        if (!order) {
+          return bot.sendMessage(userChatId, '❌ Buyurtma topilmadi. / Заказ не найден.');
+        }
+
+        // Save chat_id on the order itself (works for both guests and logged-in users)
+        order.customerTelegramChatId = userChatId;
+        await order.save();
+
+        // Also persist on the user account so future orders are auto-linked
+        if (order.user) {
+          order.user.telegramId       = userChatId;
+          order.user.telegramUsername = msg.chat.username || '';
+          await order.user.save();
+        }
+
+        const lang = order.language || 'ru';
+        const reply = lang === 'uz'
+          ? `✅ *${order.orderNumber}* buyurtmangiz uchun Telegram xabarnomalar ulandi!\n\n📦 Buyurtmangiz holati o'zgarganda shu yerda xabar olasiz. 🌸`
+          : `✅ Уведомления для заказа *${order.orderNumber}* подключены!\n\n📦 Когда статус вашего заказа изменится, вы получите сообщение здесь. 🌸`;
+
+        return bot.sendMessage(userChatId, reply, { parse_mode: 'Markdown' });
+      } catch (e) {
+        console.error('/start order link error:', e.message);
+        return bot.sendMessage(userChatId, '❌ Xatolik yuz berdi. / Произошла ошибка.');
+      }
+    }
+
+    // ── Case 2: profile deep-link (Profile page "Connect Telegram" button)
+    if (param?.startsWith('user_')) {
+      const userId = param.replace('user_', '');
+      try {
+        const user = await User.findById(userId);
+        if (!user) {
+          return bot.sendMessage(userChatId, '❌ Foydalanuvchi topilmadi. / Пользователь не найден.');
+        }
+
+        user.telegramId       = userChatId;
+        user.telegramUsername = msg.chat.username || '';
+        await user.save();
+
+        const lang = user.preferredLanguage || 'ru';
+        const reply = lang === 'uz'
+          ? `✅ *${user.name}*, Telegram muvaffaqiyatli ulandi!\n\nEndi barcha buyurtmalaringiz holati haqida bu yerda xabar olasiz. 🌸`
+          : `✅ *${user.name}*, Telegram успешно подключён!\n\nТеперь вы будете получать уведомления об изменении статуса ваших заказов здесь. 🌸`;
+
+        return bot.sendMessage(userChatId, reply, { parse_mode: 'Markdown' });
+      } catch (e) {
+        console.error('/start user link error:', e.message);
+        return bot.sendMessage(userChatId, '❌ Xatolik yuz berdi. / Произошла ошибка.');
+      }
+    }
+
+    // ── Case 3: admin menu
+    if (isAdmin(msg.chat.id)) {
       return bot.sendMessage(
-        msg.chat.id,
-        '🌸 Добро пожаловать в *Luxury Platok*!\nДля заказов посетите наш сайт или магазины в Ташкенте.',
-        { parse_mode: 'Markdown' }
+        userChatId,
+        `✨ *Luxury Platok — Admin Bot*\n━━━━━━━━━━━━━━━━━━━━\n\n/orders — Последние заказы\n/pending — Ожидающие\n/stats — Статистика за сегодня\n/order \\<номер\\> — Найти заказ\n\nНажимайте кнопки под заказами для обновления статуса.`,
+        { parse_mode: 'MarkdownV2' }
       );
     }
-    bot.sendMessage(
-      msg.chat.id,
-      `✨ *Luxury Platok — Admin Bot*\n━━━━━━━━━━━━━━━━━━━━\n\n/orders — Последние заказы\n/pending — Ожидающие\n/stats — Статистика за сегодня\n/order \\<номер\\> — Найти заказ\n\nНажимайте кнопки под заказами для обновления статуса.`,
-      { parse_mode: 'MarkdownV2' }
+
+    // ── Case 4: generic customer welcome
+    return bot.sendMessage(
+      userChatId,
+      '🌸 Добро пожаловать в *Luxury Platok*!\nДля заказов посетите наш сайт или магазины в Ташкенте.',
+      { parse_mode: 'Markdown' }
     );
   });
 
@@ -307,8 +401,8 @@ export const initBot = async () => {
       }
       await order.save();
 
-      // Notify the customer
-      if (order.user?.telegramId) {
+      // Notify customer — works for both linked accounts and guest orders
+      if (order.user?.telegramId || order.customerTelegramChatId) {
         await sendUserStatusUpdate(order, newStatus, order.user);
       }
 

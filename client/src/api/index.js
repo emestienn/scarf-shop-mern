@@ -72,6 +72,10 @@ export const usersApi = {
   changePassword: (data) => api.put('/users/change-password', data),
 };
 
+export const configApi = {
+  get: () => api.get('/config'),
+};
+
 export const adminApi = {
   getDashboard:      ()         => api.get('/admin/dashboard'),
   getUsers:          (params)   => api.get('/admin/users', { params }),

@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Check, ChevronRight } from 'lucide-react';
+import { Check, ChevronRight, Send, MapPin, Loader2, Navigation } from 'lucide-react';
 import useCartStore from '../store/cartStore.js';
 import useAuthStore from '../store/authStore.js';
 import useLanguageStore from '../store/languageStore.js';
-import { ordersApi } from '../api/index.js';
+import { ordersApi, configApi } from '../api/index.js';
 import { PLACEHOLDER_IMAGE, handleImageError } from '../utils/image.js';
 
 const formatPrice = (n) => new Intl.NumberFormat('uz-UZ').format(n);
@@ -31,10 +31,53 @@ export default function Checkout() {
   const { user } = useAuthStore();
   const { t, lang } = useLanguageStore();
 
-  const [step, setStep]           = useState(0);
+  const [step, setStep]             = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [placedOrder, setPlacedOrder] = useState(null);
-  const [error, setError]         = useState('');
+  const [error, setError]           = useState('');
+  const [botUsername, setBotUsername] = useState('');
+
+  // Location state — GPS coords and/or manual address text
+  const [loc, setLoc] = useState({
+    address:   '',
+    lat:       null,
+    lng:       null,
+    detecting: false,
+    detected:  false,
+    geoError:  '',
+  });
+  const [locError, setLocError] = useState(false);
+
+  useEffect(() => {
+    configApi.get()
+      .then(({ data }) => setBotUsername(data.telegramBotUsername || ''))
+      .catch(() => {});
+  }, []);
+
+  const detectLocation = () => {
+    if (!navigator.geolocation) {
+      setLoc((l) => ({ ...l, geoError: t('checkout.location.no_support') }));
+      return;
+    }
+    setLoc((l) => ({ ...l, detecting: true, geoError: '' }));
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLoc((l) => ({
+          ...l,
+          lat:       pos.coords.latitude,
+          lng:       pos.coords.longitude,
+          detecting: false,
+          detected:  true,
+          geoError:  '',
+        }));
+        setLocError(false);
+      },
+      () => {
+        setLoc((l) => ({ ...l, detecting: false, geoError: t('checkout.location.denied') }));
+      },
+      { timeout: 10000, maximumAge: 60000 }
+    );
+  };
 
   const [form, setForm] = useState({
     fullName:       user?.name || '',
@@ -78,6 +121,12 @@ export default function Checkout() {
         guestEmail:     form.guestEmail,
         guestPhone:     form.phone,
         language:       lang,
+        location: form.deliveryMethod === 'delivery' ? {
+          address:   loc.address || undefined,
+          latitude:  loc.lat     || undefined,
+          longitude: loc.lng     || undefined,
+          mapLink:   loc.lat ? `https://www.google.com/maps?q=${loc.lat},${loc.lng}` : undefined,
+        } : undefined,
       };
 
       const { data } = await ordersApi.create(orderData);
@@ -109,6 +158,18 @@ export default function Checkout() {
             Заказ <strong className="text-charcoal-700">{placedOrder.orderNumber}</strong>
           </p>
           <div className="space-y-3">
+            {/* Telegram notification CTA — shown when bot username is available */}
+            {botUsername && (
+              <a
+                href={`https://t.me/${botUsername}?start=${placedOrder.orderNumber}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full flex items-center justify-center gap-2 py-3 px-6 rounded-2xl bg-[#229ED9] hover:bg-[#1a8fc7] text-white font-medium transition-colors"
+              >
+                <Send size={18} />
+                {t('checkout.telegram_notify')}
+              </a>
+            )}
             {user && (
               <Link to="/orders" className="btn-primary w-full block text-center">
                 Мои заказы
@@ -247,15 +308,69 @@ export default function Checkout() {
                           <input value={form.guestEmail} onChange={(e) => update('guestEmail', e.target.value)} type="email" className="input-field" placeholder="your@email.com" />
                         </div>
                       )}
+
+                      {/* ── Location widget ── */}
+                      <div className="border-t border-charcoal-100 pt-4 mt-1 space-y-3">
+                        <Label>{t('checkout.location.label')} *</Label>
+
+                        {/* GPS auto-detect button */}
+                        <button
+                          type="button"
+                          onClick={detectLocation}
+                          disabled={loc.detecting}
+                          className={`w-full flex items-center justify-center gap-2 py-3 rounded-2xl border-2 font-medium text-sm transition-all ${
+                            loc.detected
+                              ? 'border-green-400 bg-green-50 text-green-700'
+                              : 'border-charcoal-200 hover:border-pink-300 text-charcoal-600'
+                          }`}
+                        >
+                          {loc.detecting
+                            ? <Loader2 size={16} className="animate-spin" />
+                            : loc.detected
+                            ? <><Navigation size={16} className="fill-green-500" /> {t('checkout.location.detected')}</>
+                            : <><MapPin size={16} /> {t('checkout.location.detect_btn')}</>
+                          }
+                          {loc.detecting && t('checkout.location.detecting')}
+                        </button>
+
+                        {loc.geoError && (
+                          <p className="text-xs text-amber-600 flex items-center gap-1">
+                            <MapPin size={12} /> {loc.geoError}
+                          </p>
+                        )}
+
+                        {/* Manual address fallback */}
+                        <div>
+                          <input
+                            value={loc.address}
+                            onChange={(e) => {
+                              setLoc((l) => ({ ...l, address: e.target.value }));
+                              if (e.target.value.trim()) setLocError(false);
+                            }}
+                            className={`input-field ${locError && !loc.detected && !loc.address.trim() ? 'border-red-300 focus:border-red-400' : ''}`}
+                            placeholder={t('checkout.location.manual_ph')}
+                          />
+                          {locError && !loc.detected && !loc.address.trim() && (
+                            <p className="text-xs text-red-500 mt-1">{t('checkout.location.required')}</p>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   )}
 
                   <button
-                    onClick={() => setStep(1)}
+                    onClick={() => {
+                      if (form.deliveryMethod === 'delivery') {
+                        const hasLocation = loc.detected || loc.address.trim();
+                        if (!hasLocation) { setLocError(true); return; }
+                      }
+                      setLocError(false);
+                      setStep(1);
+                    }}
                     disabled={form.deliveryMethod === 'delivery' && (!form.fullName || !form.phone || !form.district || !form.street)}
                     className="btn-primary w-full mt-6 flex items-center justify-center gap-2"
                   >
-                    Далее: Оплата <ChevronRight size={18} />
+                    {t('checkout.next_payment')} <ChevronRight size={18} />
                   </button>
                 </motion.div>
               )}
@@ -309,6 +424,14 @@ export default function Checkout() {
                         <p className="text-charcoal-500">{form.district}, {form.street}{form.apartment ? `, кв. ${form.apartment}` : ''}</p>
                       )}
                       <p className="text-charcoal-500">{form.fullName} · {form.phone}</p>
+                      {form.deliveryMethod === 'delivery' && (
+                        <p className="text-charcoal-500 flex items-center gap-1 mt-1">
+                          <MapPin size={12} className="text-pink-400 flex-shrink-0" />
+                          {loc.detected
+                            ? t('checkout.location.confirmed_gps')
+                            : loc.address || t('checkout.location.not_set')}
+                        </p>
+                      )}
                     </div>
                     <div className="bg-pink-50/50 rounded-2xl p-4 text-sm">
                       <p className="font-medium text-charcoal-700">{PAYMENT_METHODS.find(pm => pm.value === form.paymentMethod)?.label}</p>
